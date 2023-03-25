@@ -1,69 +1,91 @@
-import {interval, merge, combineLatest, fromEvent} from 'rxjs';
-import {tap, scan, takeWhile} from 'rxjs/operators';
-import {paint} from './html-renderer';
+import { fromEvent, of, interval, combineLatest, generate, noop } from "rxjs";
+import {
+  map,
+  mergeMap,
+  pluck,
+  startWith,
+  scan,
+  toArray,
+  takeWhile,
+  tap,
+} from "rxjs/operators";
+import { gameSize } from "./constants";
+import { Player, Ball, GameObject } from "./interfaces";
+import { render } from "./html-renderer";
 
-const gamePipe = (x,y) => ({x, y, checked: false});
-const gameSize = 10;
-const createPipes = y =>
-  (random =>
-    Array.from(Array(gameSize).keys())
-      .map(e => gamePipe(e, y))
-      .filter(e => e.x < random || e.x > random + 2))(Math.floor(Math.random() * Math.floor(gameSize))
-  );
-  const gamePipes$ = interval(500).pipe(
-    scan < any,
-    any >(acc =>(acc.length < 2 ? [...acc, createPipes(gameSize)] : acc)
-          .filter(c => c.some(e => e.y > 0))
-          .map(cols => cols.map(e => gamePipe(e.x, e.y - 1))),
-      [createPipes(gameSize / 2), createPipes(gameSize)])
-  );
+const createGameObject = (x, y) => ({ x, y });
 
-  const fly = xPos => (xPos > 0 ? (xPos -= 1) : xPos);
-const fall = xPos => (xPos < gameSize - 1 ? (xPos += 1) : gameSize - 1);
-const bird$ = merge(interval(300), fromEvent(document, 'keydown')).pipe(
-  scan < any,
-  any >
-    ((xPos, curr) => (curr instanceof KeyboardEvent ? fly(xPos) : fall(xPos)),
-    gameSize - 1)
+const player$ = combineLatest(
+  of({
+    ...createGameObject(gameSize - 2, gameSize / 2 - 1),
+    score: 0,
+    lives: 3,
+  }),
+  fromEvent(document, "keyup").pipe(startWith({ code: "" }), pluck("code"))
+).pipe(
+  map(
+    ([player, key]) => (
+      key === "ArrowLeft"
+        ? (player.y -= 1)
+        : key === "ArrowRight"
+        ? (player.y += 1)
+        : noop,
+      player
+    )
+  )
 );
 
-const updateGame = (bird, pipes) =>
-  (game => (
-    pipes.forEach(col => col.forEach(v => (game[v.x][v.y] = 2))),
-    (game[bird][0] = 1),
-    game
-  ))(
-    Array(gameSize)
-      .fill(0)
-      .map(e => Array(gameSize).fill(0))
-  );
+const ball$ = combineLatest(
+  of({ ...createGameObject(gameSize / 2, gameSize - 3), dirX: 1, dirY: 1 }),
+  interval(150)
+).pipe(
+  map(
+    ([ball, _]: [Ball, number]) => (
+      (ball.dirX *= ball.x > 0 ? 1 : -1),
+      (ball.dirY *= ball.y > 0 && ball.y < gameSize - 1 ? 1 : -1),
+      (ball.x += 1 * ball.dirX),
+      (ball.y -= 1 * ball.dirY),
+      ball
+    )
+  )
+);
 
-const valueOnCollisionFor = pipes => ({
-  when: predicate =>
-    !pipes[0][0].checked && predicate ? ((pipes[0][0].checked = true), 1) : 0
-});
+const bricks$ = generate(
+  1,
+  (x) => x < 8,
+  (x) => x + 1
+).pipe(
+  mergeMap((r) =>
+    generate(
+      r % 2 === 0 ? 1 : 0,
+      (x) => x < gameSize,
+      (x) => x + 2
+    ).pipe(map((c) => createGameObject(r, c)))
+  ),
+  toArray()
+);
 
-combineLatest(bird$, gamePipes$)
+const processGameCollisions = (
+  _,
+  [player, ball, bricks]: [Player, Ball, GameObject[]]
+): [Player, Ball, GameObject[]] => (
+  ((collidingBrickIndex) =>
+    collidingBrickIndex > -1
+      ? (bricks.splice(collidingBrickIndex, 1),
+        (ball.dirX *= -1),
+        player.score++)
+      : noop)(bricks.findIndex((e) => e.x === ball.x && e.y === ball.y)),
+  (ball.dirX *= player.x === ball.x && player.y === ball.y ? -1 : 1),
+  ball.x > player.x ? (player.lives--, (ball.x = gameSize / 2 - 3)) : noop,
+  [player, ball, bricks]
+);
+
+combineLatest(player$, ball$, bricks$)
   .pipe(
-    scan < any,
-    any >
-      ((state, [bird, pipes]) => ({
-        bird: bird,
-        pipes: pipes,
-        lives:
-          state.lives -
-          valueOnCollisionFor(pipes).when(
-            pipes.some(c => c.some(c => c.y === 0 && c.x === bird))
-          ),
-        score:
-          state.score + valueOnCollisionFor(pipes).when(pipes[0][0].y === 0)
-      }),
-      { lives: 3, score: 0, bird: 0, pipes: [] }),
-    tap(state =>
-      paint(updateGame(state.bird, state.pipes), state.lives, state.score)
+    scan<[Player, Ball, GameObject[]], [Player, Ball, GameObject[]]>(
+      processGameCollisions
     ),
-    takeWhile(state => state.lives > 0)
+    tap(render),
+    takeWhile(([player]: [Player, Ball, GameObject[]]) => player.lives > 0)
   )
   .subscribe();
-
-  

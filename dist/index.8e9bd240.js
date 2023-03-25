@@ -559,47 +559,39 @@ function hmrAccept(bundle, id) {
 },{}],"1jwFz":[function(require,module,exports) {
 var _rxjs = require("rxjs");
 var _operators = require("rxjs/operators");
+var _constants = require("./constants");
 var _htmlRenderer = require("./html-renderer");
-const gamePipe = (x, y)=>({
+const createGameObject = (x, y)=>({
         x,
-        y,
-        checked: false
+        y
     });
-const gameSize = 10;
-const createPipes = (y)=>((random)=>Array.from(Array(gameSize).keys()).map((e)=>gamePipe(e, y)).filter((e)=>e.x < random || e.x > random + 2))(Math.floor(Math.random() * Math.floor(gameSize)));
-const gamePipes$ = (0, _rxjs.interval)(500).pipe((0, _operators.scan)((acc)=>(acc.length < 2 ? [
-        ...acc,
-        createPipes(gameSize)
-    ] : acc).filter((c)=>c.some((e)=>e.y > 0)).map((cols)=>cols.map((e)=>gamePipe(e.x, e.y - 1))), [
-    createPipes(gameSize / 2),
-    createPipes(gameSize)
-]));
-const fly = (xPos)=>xPos > 0 ? xPos -= 1 : xPos;
-const fall = (xPos)=>xPos < gameSize - 1 ? xPos += 1 : gameSize - 1;
-const bird$ = (0, _rxjs.merge)((0, _rxjs.interval)(300), (0, _rxjs.fromEvent)(document, "keydown")).pipe((0, _operators.scan)((xPos, curr)=>curr instanceof KeyboardEvent ? fly(xPos) : fall(xPos), gameSize - 1));
-const updateGame = (bird, pipes)=>((game)=>(pipes.forEach((col)=>col.forEach((v)=>game[v.x][v.y] = 2)), game[bird][0] = 1, game))(Array(gameSize).fill(0).map((e)=>Array(gameSize).fill(0)));
-const valueOnCollisionFor = (pipes)=>({
-        when: (predicate)=>!pipes[0][0].checked && predicate ? (pipes[0][0].checked = true, 1) : 0
-    });
-(0, _rxjs.combineLatest)(bird$, gamePipes$).pipe((0, _operators.scan)((state, [bird, pipes])=>({
-        bird: bird,
-        pipes: pipes,
-        lives: state.lives - valueOnCollisionFor(pipes).when(pipes.some((c)=>c.some((c)=>c.y === 0 && c.x === bird))),
-        score: state.score + valueOnCollisionFor(pipes).when(pipes[0][0].y === 0)
-    }), {
-    lives: 3,
+const player$ = (0, _rxjs.combineLatest)((0, _rxjs.of)({
+    ...createGameObject((0, _constants.gameSize) - 2, (0, _constants.gameSize) / 2 - 1),
     score: 0,
-    bird: 0,
-    pipes: []
-}), (0, _operators.tap)((state)=>(0, _htmlRenderer.paint)(updateGame(state.bird, state.pipes), state.lives, state.score)), (0, _operators.takeWhile)((state)=>state.lives > 0)).subscribe();
+    lives: 3
+}), (0, _rxjs.fromEvent)(document, "keyup").pipe((0, _operators.startWith)({
+    code: ""
+}), (0, _operators.pluck)("code"))).pipe((0, _operators.map)(([player, key])=>(key === "ArrowLeft" ? player.y -= 1 : key === "ArrowRight" ? player.y += 1 : (0, _rxjs.noop), player)));
+const ball$ = (0, _rxjs.combineLatest)((0, _rxjs.of)({
+    ...createGameObject((0, _constants.gameSize) / 2, (0, _constants.gameSize) - 3),
+    dirX: 1,
+    dirY: 1
+}), (0, _rxjs.interval)(150)).pipe((0, _operators.map)(([ball, _])=>(ball.dirX *= ball.x > 0 ? 1 : -1, ball.dirY *= ball.y > 0 && ball.y < (0, _constants.gameSize) - 1 ? 1 : -1, ball.x += 1 * ball.dirX, ball.y -= 1 * ball.dirY, ball)));
+const bricks$ = (0, _rxjs.generate)(1, (x)=>x < 8, (x)=>x + 1).pipe((0, _operators.mergeMap)((r)=>(0, _rxjs.generate)(r % 2 === 0 ? 1 : 0, (x)=>x < (0, _constants.gameSize), (x)=>x + 2).pipe((0, _operators.map)((c)=>createGameObject(r, c)))), (0, _operators.toArray)());
+const processGameCollisions = (_, [player, ball, bricks])=>(((collidingBrickIndex)=>collidingBrickIndex > -1 ? (bricks.splice(collidingBrickIndex, 1), ball.dirX *= -1, player.score++) : (0, _rxjs.noop))(bricks.findIndex((e)=>e.x === ball.x && e.y === ball.y)), ball.dirX *= player.x === ball.x && player.y === ball.y ? -1 : 1, ball.x > player.x ? (player.lives--, ball.x = (0, _constants.gameSize) / 2 - 3) : (0, _rxjs.noop), [
+        player,
+        ball,
+        bricks
+    ]);
+(0, _rxjs.combineLatest)(player$, ball$, bricks$).pipe((0, _operators.scan)(processGameCollisions), (0, _operators.tap)((0, _htmlRenderer.render)), (0, _operators.takeWhile)(([player])=>player.lives > 0)).subscribe();
 
-},{"rxjs":"6zoQ7","rxjs/operators":"h5Xn7","./html-renderer":"7gpxq"}],"6zoQ7":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"rxjs":"lLy7s","rxjs/operators":"hLs7d","./html-renderer":"7gpxq","./constants":"16G01"}],"lLy7s":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Observable", ()=>(0, _observable.Observable));
 parcelHelpers.export(exports, "ConnectableObservable", ()=>(0, _connectableObservable.ConnectableObservable));
-parcelHelpers.export(exports, "GroupedObservable", ()=>(0, _groupBy.GroupedObservable));
 parcelHelpers.export(exports, "observable", ()=>(0, _observable1.observable));
+parcelHelpers.export(exports, "animationFrames", ()=>(0, _animationFrames.animationFrames));
 parcelHelpers.export(exports, "Subject", ()=>(0, _subject.Subject));
 parcelHelpers.export(exports, "BehaviorSubject", ()=>(0, _behaviorSubject.BehaviorSubject));
 parcelHelpers.export(exports, "ReplaySubject", ()=>(0, _replaySubject.ReplaySubject));
@@ -623,15 +615,20 @@ parcelHelpers.export(exports, "pipe", ()=>(0, _pipe.pipe));
 parcelHelpers.export(exports, "noop", ()=>(0, _noop.noop));
 parcelHelpers.export(exports, "identity", ()=>(0, _identity.identity));
 parcelHelpers.export(exports, "isObservable", ()=>(0, _isObservable.isObservable));
+parcelHelpers.export(exports, "lastValueFrom", ()=>(0, _lastValueFrom.lastValueFrom));
+parcelHelpers.export(exports, "firstValueFrom", ()=>(0, _firstValueFrom.firstValueFrom));
 parcelHelpers.export(exports, "ArgumentOutOfRangeError", ()=>(0, _argumentOutOfRangeError.ArgumentOutOfRangeError));
 parcelHelpers.export(exports, "EmptyError", ()=>(0, _emptyError.EmptyError));
+parcelHelpers.export(exports, "NotFoundError", ()=>(0, _notFoundError.NotFoundError));
 parcelHelpers.export(exports, "ObjectUnsubscribedError", ()=>(0, _objectUnsubscribedError.ObjectUnsubscribedError));
+parcelHelpers.export(exports, "SequenceError", ()=>(0, _sequenceError.SequenceError));
+parcelHelpers.export(exports, "TimeoutError", ()=>(0, _timeout.TimeoutError));
 parcelHelpers.export(exports, "UnsubscriptionError", ()=>(0, _unsubscriptionError.UnsubscriptionError));
-parcelHelpers.export(exports, "TimeoutError", ()=>(0, _timeoutError.TimeoutError));
 parcelHelpers.export(exports, "bindCallback", ()=>(0, _bindCallback.bindCallback));
 parcelHelpers.export(exports, "bindNodeCallback", ()=>(0, _bindNodeCallback.bindNodeCallback));
 parcelHelpers.export(exports, "combineLatest", ()=>(0, _combineLatest.combineLatest));
 parcelHelpers.export(exports, "concat", ()=>(0, _concat.concat));
+parcelHelpers.export(exports, "connectable", ()=>(0, _connectable.connectable));
 parcelHelpers.export(exports, "defer", ()=>(0, _defer.defer));
 parcelHelpers.export(exports, "empty", ()=>(0, _empty.empty));
 parcelHelpers.export(exports, "forkJoin", ()=>(0, _forkJoin.forkJoin));
@@ -657,10 +654,117 @@ parcelHelpers.export(exports, "scheduled", ()=>(0, _scheduled.scheduled));
 parcelHelpers.export(exports, "EMPTY", ()=>(0, _empty.EMPTY));
 parcelHelpers.export(exports, "NEVER", ()=>(0, _never.NEVER));
 parcelHelpers.export(exports, "config", ()=>(0, _config.config));
+parcelHelpers.export(exports, "audit", ()=>(0, _audit.audit));
+parcelHelpers.export(exports, "auditTime", ()=>(0, _auditTime.auditTime));
+parcelHelpers.export(exports, "buffer", ()=>(0, _buffer.buffer));
+parcelHelpers.export(exports, "bufferCount", ()=>(0, _bufferCount.bufferCount));
+parcelHelpers.export(exports, "bufferTime", ()=>(0, _bufferTime.bufferTime));
+parcelHelpers.export(exports, "bufferToggle", ()=>(0, _bufferToggle.bufferToggle));
+parcelHelpers.export(exports, "bufferWhen", ()=>(0, _bufferWhen.bufferWhen));
+parcelHelpers.export(exports, "catchError", ()=>(0, _catchError.catchError));
+parcelHelpers.export(exports, "combineAll", ()=>(0, _combineAll.combineAll));
+parcelHelpers.export(exports, "combineLatestAll", ()=>(0, _combineLatestAll.combineLatestAll));
+parcelHelpers.export(exports, "combineLatestWith", ()=>(0, _combineLatestWith.combineLatestWith));
+parcelHelpers.export(exports, "concatAll", ()=>(0, _concatAll.concatAll));
+parcelHelpers.export(exports, "concatMap", ()=>(0, _concatMap.concatMap));
+parcelHelpers.export(exports, "concatMapTo", ()=>(0, _concatMapTo.concatMapTo));
+parcelHelpers.export(exports, "concatWith", ()=>(0, _concatWith.concatWith));
+parcelHelpers.export(exports, "connect", ()=>(0, _connect.connect));
+parcelHelpers.export(exports, "count", ()=>(0, _count.count));
+parcelHelpers.export(exports, "debounce", ()=>(0, _debounce.debounce));
+parcelHelpers.export(exports, "debounceTime", ()=>(0, _debounceTime.debounceTime));
+parcelHelpers.export(exports, "defaultIfEmpty", ()=>(0, _defaultIfEmpty.defaultIfEmpty));
+parcelHelpers.export(exports, "delay", ()=>(0, _delay.delay));
+parcelHelpers.export(exports, "delayWhen", ()=>(0, _delayWhen.delayWhen));
+parcelHelpers.export(exports, "dematerialize", ()=>(0, _dematerialize.dematerialize));
+parcelHelpers.export(exports, "distinct", ()=>(0, _distinct.distinct));
+parcelHelpers.export(exports, "distinctUntilChanged", ()=>(0, _distinctUntilChanged.distinctUntilChanged));
+parcelHelpers.export(exports, "distinctUntilKeyChanged", ()=>(0, _distinctUntilKeyChanged.distinctUntilKeyChanged));
+parcelHelpers.export(exports, "elementAt", ()=>(0, _elementAt.elementAt));
+parcelHelpers.export(exports, "endWith", ()=>(0, _endWith.endWith));
+parcelHelpers.export(exports, "every", ()=>(0, _every.every));
+parcelHelpers.export(exports, "exhaust", ()=>(0, _exhaust.exhaust));
+parcelHelpers.export(exports, "exhaustAll", ()=>(0, _exhaustAll.exhaustAll));
+parcelHelpers.export(exports, "exhaustMap", ()=>(0, _exhaustMap.exhaustMap));
+parcelHelpers.export(exports, "expand", ()=>(0, _expand.expand));
+parcelHelpers.export(exports, "filter", ()=>(0, _filter.filter));
+parcelHelpers.export(exports, "finalize", ()=>(0, _finalize.finalize));
+parcelHelpers.export(exports, "find", ()=>(0, _find.find));
+parcelHelpers.export(exports, "findIndex", ()=>(0, _findIndex.findIndex));
+parcelHelpers.export(exports, "first", ()=>(0, _first.first));
+parcelHelpers.export(exports, "groupBy", ()=>(0, _groupBy.groupBy));
+parcelHelpers.export(exports, "ignoreElements", ()=>(0, _ignoreElements.ignoreElements));
+parcelHelpers.export(exports, "isEmpty", ()=>(0, _isEmpty.isEmpty));
+parcelHelpers.export(exports, "last", ()=>(0, _last.last));
+parcelHelpers.export(exports, "map", ()=>(0, _map.map));
+parcelHelpers.export(exports, "mapTo", ()=>(0, _mapTo.mapTo));
+parcelHelpers.export(exports, "materialize", ()=>(0, _materialize.materialize));
+parcelHelpers.export(exports, "max", ()=>(0, _max.max));
+parcelHelpers.export(exports, "mergeAll", ()=>(0, _mergeAll.mergeAll));
+parcelHelpers.export(exports, "flatMap", ()=>(0, _flatMap.flatMap));
+parcelHelpers.export(exports, "mergeMap", ()=>(0, _mergeMap.mergeMap));
+parcelHelpers.export(exports, "mergeMapTo", ()=>(0, _mergeMapTo.mergeMapTo));
+parcelHelpers.export(exports, "mergeScan", ()=>(0, _mergeScan.mergeScan));
+parcelHelpers.export(exports, "mergeWith", ()=>(0, _mergeWith.mergeWith));
+parcelHelpers.export(exports, "min", ()=>(0, _min.min));
+parcelHelpers.export(exports, "multicast", ()=>(0, _multicast.multicast));
+parcelHelpers.export(exports, "observeOn", ()=>(0, _observeOn.observeOn));
+parcelHelpers.export(exports, "onErrorResumeNextWith", ()=>(0, _onErrorResumeNextWith.onErrorResumeNextWith));
+parcelHelpers.export(exports, "pairwise", ()=>(0, _pairwise.pairwise));
+parcelHelpers.export(exports, "pluck", ()=>(0, _pluck.pluck));
+parcelHelpers.export(exports, "publish", ()=>(0, _publish.publish));
+parcelHelpers.export(exports, "publishBehavior", ()=>(0, _publishBehavior.publishBehavior));
+parcelHelpers.export(exports, "publishLast", ()=>(0, _publishLast.publishLast));
+parcelHelpers.export(exports, "publishReplay", ()=>(0, _publishReplay.publishReplay));
+parcelHelpers.export(exports, "raceWith", ()=>(0, _raceWith.raceWith));
+parcelHelpers.export(exports, "reduce", ()=>(0, _reduce.reduce));
+parcelHelpers.export(exports, "repeat", ()=>(0, _repeat.repeat));
+parcelHelpers.export(exports, "repeatWhen", ()=>(0, _repeatWhen.repeatWhen));
+parcelHelpers.export(exports, "retry", ()=>(0, _retry.retry));
+parcelHelpers.export(exports, "retryWhen", ()=>(0, _retryWhen.retryWhen));
+parcelHelpers.export(exports, "refCount", ()=>(0, _refCount.refCount));
+parcelHelpers.export(exports, "sample", ()=>(0, _sample.sample));
+parcelHelpers.export(exports, "sampleTime", ()=>(0, _sampleTime.sampleTime));
+parcelHelpers.export(exports, "scan", ()=>(0, _scan.scan));
+parcelHelpers.export(exports, "sequenceEqual", ()=>(0, _sequenceEqual.sequenceEqual));
+parcelHelpers.export(exports, "share", ()=>(0, _share.share));
+parcelHelpers.export(exports, "shareReplay", ()=>(0, _shareReplay.shareReplay));
+parcelHelpers.export(exports, "single", ()=>(0, _single.single));
+parcelHelpers.export(exports, "skip", ()=>(0, _skip.skip));
+parcelHelpers.export(exports, "skipLast", ()=>(0, _skipLast.skipLast));
+parcelHelpers.export(exports, "skipUntil", ()=>(0, _skipUntil.skipUntil));
+parcelHelpers.export(exports, "skipWhile", ()=>(0, _skipWhile.skipWhile));
+parcelHelpers.export(exports, "startWith", ()=>(0, _startWith.startWith));
+parcelHelpers.export(exports, "subscribeOn", ()=>(0, _subscribeOn.subscribeOn));
+parcelHelpers.export(exports, "switchAll", ()=>(0, _switchAll.switchAll));
+parcelHelpers.export(exports, "switchMap", ()=>(0, _switchMap.switchMap));
+parcelHelpers.export(exports, "switchMapTo", ()=>(0, _switchMapTo.switchMapTo));
+parcelHelpers.export(exports, "switchScan", ()=>(0, _switchScan.switchScan));
+parcelHelpers.export(exports, "take", ()=>(0, _take.take));
+parcelHelpers.export(exports, "takeLast", ()=>(0, _takeLast.takeLast));
+parcelHelpers.export(exports, "takeUntil", ()=>(0, _takeUntil.takeUntil));
+parcelHelpers.export(exports, "takeWhile", ()=>(0, _takeWhile.takeWhile));
+parcelHelpers.export(exports, "tap", ()=>(0, _tap.tap));
+parcelHelpers.export(exports, "throttle", ()=>(0, _throttle.throttle));
+parcelHelpers.export(exports, "throttleTime", ()=>(0, _throttleTime.throttleTime));
+parcelHelpers.export(exports, "throwIfEmpty", ()=>(0, _throwIfEmpty.throwIfEmpty));
+parcelHelpers.export(exports, "timeInterval", ()=>(0, _timeInterval.timeInterval));
+parcelHelpers.export(exports, "timeout", ()=>(0, _timeout.timeout));
+parcelHelpers.export(exports, "timeoutWith", ()=>(0, _timeoutWith.timeoutWith));
+parcelHelpers.export(exports, "timestamp", ()=>(0, _timestamp.timestamp));
+parcelHelpers.export(exports, "toArray", ()=>(0, _toArray.toArray));
+parcelHelpers.export(exports, "window", ()=>(0, _window.window));
+parcelHelpers.export(exports, "windowCount", ()=>(0, _windowCount.windowCount));
+parcelHelpers.export(exports, "windowTime", ()=>(0, _windowTime.windowTime));
+parcelHelpers.export(exports, "windowToggle", ()=>(0, _windowToggle.windowToggle));
+parcelHelpers.export(exports, "windowWhen", ()=>(0, _windowWhen.windowWhen));
+parcelHelpers.export(exports, "withLatestFrom", ()=>(0, _withLatestFrom.withLatestFrom));
+parcelHelpers.export(exports, "zipAll", ()=>(0, _zipAll.zipAll));
+parcelHelpers.export(exports, "zipWith", ()=>(0, _zipWith.zipWith));
 var _observable = require("./internal/Observable");
 var _connectableObservable = require("./internal/observable/ConnectableObservable");
-var _groupBy = require("./internal/operators/groupBy");
 var _observable1 = require("./internal/symbol/observable");
+var _animationFrames = require("./internal/observable/dom/animationFrames");
 var _subject = require("./internal/Subject");
 var _behaviorSubject = require("./internal/BehaviorSubject");
 var _replaySubject = require("./internal/ReplaySubject");
@@ -678,15 +782,20 @@ var _pipe = require("./internal/util/pipe");
 var _noop = require("./internal/util/noop");
 var _identity = require("./internal/util/identity");
 var _isObservable = require("./internal/util/isObservable");
+var _lastValueFrom = require("./internal/lastValueFrom");
+var _firstValueFrom = require("./internal/firstValueFrom");
 var _argumentOutOfRangeError = require("./internal/util/ArgumentOutOfRangeError");
 var _emptyError = require("./internal/util/EmptyError");
+var _notFoundError = require("./internal/util/NotFoundError");
 var _objectUnsubscribedError = require("./internal/util/ObjectUnsubscribedError");
+var _sequenceError = require("./internal/util/SequenceError");
+var _timeout = require("./internal/operators/timeout");
 var _unsubscriptionError = require("./internal/util/UnsubscriptionError");
-var _timeoutError = require("./internal/util/TimeoutError");
 var _bindCallback = require("./internal/observable/bindCallback");
 var _bindNodeCallback = require("./internal/observable/bindNodeCallback");
 var _combineLatest = require("./internal/observable/combineLatest");
 var _concat = require("./internal/observable/concat");
+var _connectable = require("./internal/observable/connectable");
 var _defer = require("./internal/observable/defer");
 var _empty = require("./internal/observable/empty");
 var _forkJoin = require("./internal/observable/forkJoin");
@@ -709,20 +818,129 @@ var _timer = require("./internal/observable/timer");
 var _using = require("./internal/observable/using");
 var _zip = require("./internal/observable/zip");
 var _scheduled = require("./internal/scheduled/scheduled");
+var _types = require("./internal/types");
+parcelHelpers.exportAll(_types, exports);
 var _config = require("./internal/config");
+var _audit = require("./internal/operators/audit");
+var _auditTime = require("./internal/operators/auditTime");
+var _buffer = require("./internal/operators/buffer");
+var _bufferCount = require("./internal/operators/bufferCount");
+var _bufferTime = require("./internal/operators/bufferTime");
+var _bufferToggle = require("./internal/operators/bufferToggle");
+var _bufferWhen = require("./internal/operators/bufferWhen");
+var _catchError = require("./internal/operators/catchError");
+var _combineAll = require("./internal/operators/combineAll");
+var _combineLatestAll = require("./internal/operators/combineLatestAll");
+var _combineLatestWith = require("./internal/operators/combineLatestWith");
+var _concatAll = require("./internal/operators/concatAll");
+var _concatMap = require("./internal/operators/concatMap");
+var _concatMapTo = require("./internal/operators/concatMapTo");
+var _concatWith = require("./internal/operators/concatWith");
+var _connect = require("./internal/operators/connect");
+var _count = require("./internal/operators/count");
+var _debounce = require("./internal/operators/debounce");
+var _debounceTime = require("./internal/operators/debounceTime");
+var _defaultIfEmpty = require("./internal/operators/defaultIfEmpty");
+var _delay = require("./internal/operators/delay");
+var _delayWhen = require("./internal/operators/delayWhen");
+var _dematerialize = require("./internal/operators/dematerialize");
+var _distinct = require("./internal/operators/distinct");
+var _distinctUntilChanged = require("./internal/operators/distinctUntilChanged");
+var _distinctUntilKeyChanged = require("./internal/operators/distinctUntilKeyChanged");
+var _elementAt = require("./internal/operators/elementAt");
+var _endWith = require("./internal/operators/endWith");
+var _every = require("./internal/operators/every");
+var _exhaust = require("./internal/operators/exhaust");
+var _exhaustAll = require("./internal/operators/exhaustAll");
+var _exhaustMap = require("./internal/operators/exhaustMap");
+var _expand = require("./internal/operators/expand");
+var _filter = require("./internal/operators/filter");
+var _finalize = require("./internal/operators/finalize");
+var _find = require("./internal/operators/find");
+var _findIndex = require("./internal/operators/findIndex");
+var _first = require("./internal/operators/first");
+var _groupBy = require("./internal/operators/groupBy");
+var _ignoreElements = require("./internal/operators/ignoreElements");
+var _isEmpty = require("./internal/operators/isEmpty");
+var _last = require("./internal/operators/last");
+var _map = require("./internal/operators/map");
+var _mapTo = require("./internal/operators/mapTo");
+var _materialize = require("./internal/operators/materialize");
+var _max = require("./internal/operators/max");
+var _mergeAll = require("./internal/operators/mergeAll");
+var _flatMap = require("./internal/operators/flatMap");
+var _mergeMap = require("./internal/operators/mergeMap");
+var _mergeMapTo = require("./internal/operators/mergeMapTo");
+var _mergeScan = require("./internal/operators/mergeScan");
+var _mergeWith = require("./internal/operators/mergeWith");
+var _min = require("./internal/operators/min");
+var _multicast = require("./internal/operators/multicast");
+var _observeOn = require("./internal/operators/observeOn");
+var _onErrorResumeNextWith = require("./internal/operators/onErrorResumeNextWith");
+var _pairwise = require("./internal/operators/pairwise");
+var _pluck = require("./internal/operators/pluck");
+var _publish = require("./internal/operators/publish");
+var _publishBehavior = require("./internal/operators/publishBehavior");
+var _publishLast = require("./internal/operators/publishLast");
+var _publishReplay = require("./internal/operators/publishReplay");
+var _raceWith = require("./internal/operators/raceWith");
+var _reduce = require("./internal/operators/reduce");
+var _repeat = require("./internal/operators/repeat");
+var _repeatWhen = require("./internal/operators/repeatWhen");
+var _retry = require("./internal/operators/retry");
+var _retryWhen = require("./internal/operators/retryWhen");
+var _refCount = require("./internal/operators/refCount");
+var _sample = require("./internal/operators/sample");
+var _sampleTime = require("./internal/operators/sampleTime");
+var _scan = require("./internal/operators/scan");
+var _sequenceEqual = require("./internal/operators/sequenceEqual");
+var _share = require("./internal/operators/share");
+var _shareReplay = require("./internal/operators/shareReplay");
+var _single = require("./internal/operators/single");
+var _skip = require("./internal/operators/skip");
+var _skipLast = require("./internal/operators/skipLast");
+var _skipUntil = require("./internal/operators/skipUntil");
+var _skipWhile = require("./internal/operators/skipWhile");
+var _startWith = require("./internal/operators/startWith");
+var _subscribeOn = require("./internal/operators/subscribeOn");
+var _switchAll = require("./internal/operators/switchAll");
+var _switchMap = require("./internal/operators/switchMap");
+var _switchMapTo = require("./internal/operators/switchMapTo");
+var _switchScan = require("./internal/operators/switchScan");
+var _take = require("./internal/operators/take");
+var _takeLast = require("./internal/operators/takeLast");
+var _takeUntil = require("./internal/operators/takeUntil");
+var _takeWhile = require("./internal/operators/takeWhile");
+var _tap = require("./internal/operators/tap");
+var _throttle = require("./internal/operators/throttle");
+var _throttleTime = require("./internal/operators/throttleTime");
+var _throwIfEmpty = require("./internal/operators/throwIfEmpty");
+var _timeInterval = require("./internal/operators/timeInterval");
+var _timeoutWith = require("./internal/operators/timeoutWith");
+var _timestamp = require("./internal/operators/timestamp");
+var _toArray = require("./internal/operators/toArray");
+var _window = require("./internal/operators/window");
+var _windowCount = require("./internal/operators/windowCount");
+var _windowTime = require("./internal/operators/windowTime");
+var _windowToggle = require("./internal/operators/windowToggle");
+var _windowWhen = require("./internal/operators/windowWhen");
+var _withLatestFrom = require("./internal/operators/withLatestFrom");
+var _zipAll = require("./internal/operators/zipAll");
+var _zipWith = require("./internal/operators/zipWith");
 
-},{"./internal/Observable":"jfynZ","./internal/observable/ConnectableObservable":false,"./internal/operators/groupBy":false,"./internal/symbol/observable":"6YJAq","./internal/Subject":false,"./internal/BehaviorSubject":false,"./internal/ReplaySubject":false,"./internal/AsyncSubject":false,"./internal/scheduler/asap":false,"./internal/scheduler/async":"fLneT","./internal/scheduler/queue":false,"./internal/scheduler/animationFrame":false,"./internal/scheduler/VirtualTimeScheduler":false,"./internal/Scheduler":"3oTyf","./internal/Subscription":"6K2jD","./internal/Subscriber":"kpS17","./internal/Notification":false,"./internal/util/pipe":"35htl","./internal/util/noop":"4PFes","./internal/util/identity":"gxakv","./internal/util/isObservable":false,"./internal/util/ArgumentOutOfRangeError":false,"./internal/util/EmptyError":false,"./internal/util/ObjectUnsubscribedError":false,"./internal/util/UnsubscriptionError":"cAnDM","./internal/util/TimeoutError":false,"./internal/observable/bindCallback":false,"./internal/observable/bindNodeCallback":false,"./internal/observable/combineLatest":"16wHx","./internal/observable/concat":false,"./internal/observable/defer":false,"./internal/observable/empty":false,"./internal/observable/forkJoin":false,"./internal/observable/from":"8eI7u","./internal/observable/fromEvent":"eiXJM","./internal/observable/fromEventPattern":false,"./internal/observable/generate":false,"./internal/observable/iif":false,"./internal/observable/interval":"9DiSm","./internal/observable/merge":"hZiON","./internal/observable/never":false,"./internal/observable/of":false,"./internal/observable/onErrorResumeNext":false,"./internal/observable/pairs":false,"./internal/observable/partition":false,"./internal/observable/race":false,"./internal/observable/range":false,"./internal/observable/throwError":false,"./internal/observable/timer":false,"./internal/observable/using":false,"./internal/observable/zip":false,"./internal/scheduled/scheduled":"95k2n","./internal/config":"f9d8E","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"jfynZ":[function(require,module,exports) {
-/** PURE_IMPORTS_START _util_canReportError,_util_toSubscriber,_symbol_observable,_util_pipe,_config PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./internal/Observable":"4Jvxr","./internal/observable/ConnectableObservable":false,"./internal/symbol/observable":"byHtV","./internal/observable/dom/animationFrames":false,"./internal/Subject":false,"./internal/BehaviorSubject":false,"./internal/ReplaySubject":false,"./internal/AsyncSubject":false,"./internal/scheduler/asap":false,"./internal/scheduler/async":"bKyC1","./internal/scheduler/queue":false,"./internal/scheduler/animationFrame":false,"./internal/scheduler/VirtualTimeScheduler":false,"./internal/Scheduler":"90yvc","./internal/Subscription":"lFyhg","./internal/Subscriber":"1VFFQ","./internal/Notification":false,"./internal/util/pipe":"1GN6U","./internal/util/noop":"l8uEm","./internal/util/identity":"8Xfg6","./internal/util/isObservable":false,"./internal/lastValueFrom":false,"./internal/firstValueFrom":false,"./internal/util/ArgumentOutOfRangeError":false,"./internal/util/EmptyError":false,"./internal/util/NotFoundError":false,"./internal/util/ObjectUnsubscribedError":false,"./internal/util/SequenceError":false,"./internal/operators/timeout":false,"./internal/util/UnsubscriptionError":"GSF7Z","./internal/observable/bindCallback":false,"./internal/observable/bindNodeCallback":false,"./internal/observable/combineLatest":"klIwv","./internal/observable/concat":"5g0IT","./internal/observable/connectable":false,"./internal/observable/defer":"9UeEi","./internal/observable/empty":false,"./internal/observable/forkJoin":false,"./internal/observable/from":"dBWag","./internal/observable/fromEvent":"eTJLc","./internal/observable/fromEventPattern":false,"./internal/observable/generate":"djsBt","./internal/observable/iif":false,"./internal/observable/interval":"5Ox1i","./internal/observable/merge":false,"./internal/observable/never":false,"./internal/observable/of":"lnQPU","./internal/observable/onErrorResumeNext":false,"./internal/observable/pairs":false,"./internal/observable/partition":false,"./internal/observable/race":false,"./internal/observable/range":false,"./internal/observable/throwError":false,"./internal/observable/timer":"lbPdw","./internal/observable/using":false,"./internal/observable/zip":false,"./internal/scheduled/scheduled":"l8eo2","./internal/types":"c58fk","./internal/config":"fX0gC","./internal/operators/audit":false,"./internal/operators/auditTime":false,"./internal/operators/buffer":false,"./internal/operators/bufferCount":false,"./internal/operators/bufferTime":false,"./internal/operators/bufferToggle":false,"./internal/operators/bufferWhen":false,"./internal/operators/catchError":false,"./internal/operators/combineAll":false,"./internal/operators/combineLatestAll":false,"./internal/operators/combineLatestWith":false,"./internal/operators/concatAll":"77QLf","./internal/operators/concatMap":false,"./internal/operators/concatMapTo":false,"./internal/operators/concatWith":false,"./internal/operators/connect":false,"./internal/operators/count":false,"./internal/operators/debounce":false,"./internal/operators/debounceTime":false,"./internal/operators/defaultIfEmpty":false,"./internal/operators/delay":false,"./internal/operators/delayWhen":false,"./internal/operators/dematerialize":false,"./internal/operators/distinct":false,"./internal/operators/distinctUntilChanged":false,"./internal/operators/distinctUntilKeyChanged":false,"./internal/operators/elementAt":false,"./internal/operators/endWith":false,"./internal/operators/every":false,"./internal/operators/exhaust":false,"./internal/operators/exhaustAll":false,"./internal/operators/exhaustMap":false,"./internal/operators/expand":false,"./internal/operators/filter":false,"./internal/operators/finalize":false,"./internal/operators/find":false,"./internal/operators/findIndex":false,"./internal/operators/first":false,"./internal/operators/groupBy":false,"./internal/operators/ignoreElements":false,"./internal/operators/isEmpty":false,"./internal/operators/last":false,"./internal/operators/map":"25iUP","./internal/operators/mapTo":false,"./internal/operators/materialize":false,"./internal/operators/max":false,"./internal/operators/mergeAll":"iAqyw","./internal/operators/flatMap":false,"./internal/operators/mergeMap":"1Kzmb","./internal/operators/mergeMapTo":false,"./internal/operators/mergeScan":false,"./internal/operators/mergeWith":false,"./internal/operators/min":false,"./internal/operators/multicast":false,"./internal/operators/observeOn":"21OcU","./internal/operators/onErrorResumeNextWith":false,"./internal/operators/pairwise":false,"./internal/operators/pluck":"167Lv","./internal/operators/publish":false,"./internal/operators/publishBehavior":false,"./internal/operators/publishLast":false,"./internal/operators/publishReplay":false,"./internal/operators/raceWith":false,"./internal/operators/reduce":"8K6iO","./internal/operators/repeat":false,"./internal/operators/repeatWhen":false,"./internal/operators/retry":false,"./internal/operators/retryWhen":false,"./internal/operators/refCount":false,"./internal/operators/sample":false,"./internal/operators/sampleTime":false,"./internal/operators/scan":"efPFC","./internal/operators/sequenceEqual":false,"./internal/operators/share":false,"./internal/operators/shareReplay":false,"./internal/operators/single":false,"./internal/operators/skip":false,"./internal/operators/skipLast":false,"./internal/operators/skipUntil":false,"./internal/operators/skipWhile":false,"./internal/operators/startWith":"kMx2y","./internal/operators/subscribeOn":"3SFol","./internal/operators/switchAll":false,"./internal/operators/switchMap":false,"./internal/operators/switchMapTo":false,"./internal/operators/switchScan":false,"./internal/operators/take":false,"./internal/operators/takeLast":false,"./internal/operators/takeUntil":false,"./internal/operators/takeWhile":"feQNd","./internal/operators/tap":"dVdZH","./internal/operators/throttle":false,"./internal/operators/throttleTime":false,"./internal/operators/throwIfEmpty":false,"./internal/operators/timeInterval":false,"./internal/operators/timeoutWith":false,"./internal/operators/timestamp":false,"./internal/operators/toArray":"occyH","./internal/operators/window":false,"./internal/operators/windowCount":false,"./internal/operators/windowTime":false,"./internal/operators/windowToggle":false,"./internal/operators/windowWhen":false,"./internal/operators/withLatestFrom":false,"./internal/operators/zipAll":false,"./internal/operators/zipWith":false,"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4Jvxr":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Observable", ()=>Observable);
-var _canReportError = require("./util/canReportError");
-var _toSubscriber = require("./util/toSubscriber");
+var _subscriber = require("./Subscriber");
+var _subscription = require("./Subscription");
 var _observable = require("./symbol/observable");
 var _pipe = require("./util/pipe");
 var _config = require("./config");
-var Observable = /*@__PURE__*/ function() {
+var _isFunction = require("./util/isFunction");
+var _errorContext = require("./util/errorContext");
+var Observable = function() {
     function Observable(subscribe) {
-        this._isScalar = false;
         if (subscribe) this._subscribe = subscribe;
     }
     Observable.prototype.lift = function(operator) {
@@ -732,48 +950,43 @@ var Observable = /*@__PURE__*/ function() {
         return observable;
     };
     Observable.prototype.subscribe = function(observerOrNext, error, complete) {
-        var operator = this.operator;
-        var sink = (0, _toSubscriber.toSubscriber)(observerOrNext, error, complete);
-        if (operator) sink.add(operator.call(sink, this.source));
-        else sink.add(this.source || (0, _config.config).useDeprecatedSynchronousErrorHandling && !sink.syncErrorThrowable ? this._subscribe(sink) : this._trySubscribe(sink));
-        if ((0, _config.config).useDeprecatedSynchronousErrorHandling) {
-            if (sink.syncErrorThrowable) {
-                sink.syncErrorThrowable = false;
-                if (sink.syncErrorThrown) throw sink.syncErrorValue;
-            }
-        }
-        return sink;
+        var _this = this;
+        var subscriber = isSubscriber(observerOrNext) ? observerOrNext : new (0, _subscriber.SafeSubscriber)(observerOrNext, error, complete);
+        (0, _errorContext.errorContext)(function() {
+            var _a = _this, operator = _a.operator, source = _a.source;
+            subscriber.add(operator ? operator.call(subscriber, source) : source ? _this._subscribe(subscriber) : _this._trySubscribe(subscriber));
+        });
+        return subscriber;
     };
     Observable.prototype._trySubscribe = function(sink) {
         try {
             return this._subscribe(sink);
         } catch (err) {
-            if ((0, _config.config).useDeprecatedSynchronousErrorHandling) {
-                sink.syncErrorThrown = true;
-                sink.syncErrorValue = err;
-            }
-            if ((0, _canReportError.canReportError)(sink)) sink.error(err);
-            else console.warn(err);
+            sink.error(err);
         }
     };
     Observable.prototype.forEach = function(next, promiseCtor) {
         var _this = this;
         promiseCtor = getPromiseCtor(promiseCtor);
         return new promiseCtor(function(resolve, reject) {
-            var subscription;
-            subscription = _this.subscribe(function(value) {
-                try {
-                    next(value);
-                } catch (err) {
-                    reject(err);
-                    if (subscription) subscription.unsubscribe();
-                }
-            }, reject, resolve);
+            var subscriber = new (0, _subscriber.SafeSubscriber)({
+                next: function(value) {
+                    try {
+                        next(value);
+                    } catch (err) {
+                        reject(err);
+                        subscriber.unsubscribe();
+                    }
+                },
+                error: reject,
+                complete: resolve
+            });
+            _this.subscribe(subscriber);
         });
     };
     Observable.prototype._subscribe = function(subscriber) {
-        var source = this.source;
-        return source && source.subscribe(subscriber);
+        var _a;
+        return (_a = this.source) === null || _a === void 0 ? void 0 : _a.subscribe(subscriber);
     };
     Observable.prototype[0, _observable.observable] = function() {
         return this;
@@ -781,7 +994,6 @@ var Observable = /*@__PURE__*/ function() {
     Observable.prototype.pipe = function() {
         var operations = [];
         for(var _i = 0; _i < arguments.length; _i++)operations[_i] = arguments[_i];
-        if (operations.length === 0) return this;
         return (0, _pipe.pipeFromArray)(operations)(this);
     };
     Observable.prototype.toPromise = function(promiseCtor) {
@@ -804,233 +1016,175 @@ var Observable = /*@__PURE__*/ function() {
     return Observable;
 }();
 function getPromiseCtor(promiseCtor) {
-    if (!promiseCtor) promiseCtor = (0, _config.config).Promise || Promise;
-    if (!promiseCtor) throw new Error("no Promise impl found");
-    return promiseCtor;
+    var _a;
+    return (_a = promiseCtor !== null && promiseCtor !== void 0 ? promiseCtor : (0, _config.config).Promise) !== null && _a !== void 0 ? _a : Promise;
+}
+function isObserver(value) {
+    return value && (0, _isFunction.isFunction)(value.next) && (0, _isFunction.isFunction)(value.error) && (0, _isFunction.isFunction)(value.complete);
+}
+function isSubscriber(value) {
+    return value && value instanceof (0, _subscriber.Subscriber) || isObserver(value) && (0, _subscription.isSubscription)(value);
 }
 
-},{"./util/canReportError":"cF5fd","./util/toSubscriber":"eZHqn","./symbol/observable":"6YJAq","./util/pipe":"35htl","./config":"f9d8E","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cF5fd":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Subscriber PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "canReportError", ()=>canReportError);
-var _subscriber = require("../Subscriber");
-function canReportError(observer) {
-    while(observer){
-        var _a = observer, closed_1 = _a.closed, destination = _a.destination, isStopped = _a.isStopped;
-        if (closed_1 || isStopped) return false;
-        else if (destination && destination instanceof (0, _subscriber.Subscriber)) observer = destination;
-        else observer = null;
-    }
-    return true;
-}
-
-},{"../Subscriber":"kpS17","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kpS17":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_util_isFunction,_Observer,_Subscription,_internal_symbol_rxSubscriber,_config,_util_hostReportError PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./Subscriber":"1VFFQ","./Subscription":"lFyhg","./symbol/observable":"byHtV","./util/pipe":"1GN6U","./config":"fX0gC","./util/isFunction":"dEyyK","./util/errorContext":"gU38l","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1VFFQ":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Subscriber", ()=>Subscriber);
 parcelHelpers.export(exports, "SafeSubscriber", ()=>SafeSubscriber);
+parcelHelpers.export(exports, "EMPTY_OBSERVER", ()=>EMPTY_OBSERVER);
 var _tslib = require("tslib");
 var _isFunction = require("./util/isFunction");
-var _observer = require("./Observer");
 var _subscription = require("./Subscription");
-var _rxSubscriber = require("../internal/symbol/rxSubscriber");
 var _config = require("./config");
-var _hostReportError = require("./util/hostReportError");
-var Subscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(Subscriber, _super);
-    function Subscriber(destinationOrNext, error, complete) {
+var _reportUnhandledError = require("./util/reportUnhandledError");
+var _noop = require("./util/noop");
+var _notificationFactories = require("./NotificationFactories");
+var _timeoutProvider = require("./scheduler/timeoutProvider");
+var _errorContext = require("./util/errorContext");
+var Subscriber = function(_super) {
+    (0, _tslib.__extends)(Subscriber, _super);
+    function Subscriber(destination) {
         var _this = _super.call(this) || this;
-        _this.syncErrorValue = null;
-        _this.syncErrorThrown = false;
-        _this.syncErrorThrowable = false;
         _this.isStopped = false;
-        switch(arguments.length){
-            case 0:
-                _this.destination = (0, _observer.empty);
-                break;
-            case 1:
-                if (!destinationOrNext) {
-                    _this.destination = (0, _observer.empty);
-                    break;
-                }
-                if (typeof destinationOrNext === "object") {
-                    if (destinationOrNext instanceof Subscriber) {
-                        _this.syncErrorThrowable = destinationOrNext.syncErrorThrowable;
-                        _this.destination = destinationOrNext;
-                        destinationOrNext.add(_this);
-                    } else {
-                        _this.syncErrorThrowable = true;
-                        _this.destination = new SafeSubscriber(_this, destinationOrNext);
-                    }
-                    break;
-                }
-            default:
-                _this.syncErrorThrowable = true;
-                _this.destination = new SafeSubscriber(_this, destinationOrNext, error, complete);
-                break;
-        }
+        if (destination) {
+            _this.destination = destination;
+            if ((0, _subscription.isSubscription)(destination)) destination.add(_this);
+        } else _this.destination = EMPTY_OBSERVER;
         return _this;
     }
-    Subscriber.prototype[0, _rxSubscriber.rxSubscriber] = function() {
-        return this;
-    };
     Subscriber.create = function(next, error, complete) {
-        var subscriber = new Subscriber(next, error, complete);
-        subscriber.syncErrorThrowable = false;
-        return subscriber;
+        return new SafeSubscriber(next, error, complete);
     };
     Subscriber.prototype.next = function(value) {
-        if (!this.isStopped) this._next(value);
+        if (this.isStopped) handleStoppedNotification((0, _notificationFactories.nextNotification)(value), this);
+        else this._next(value);
     };
     Subscriber.prototype.error = function(err) {
-        if (!this.isStopped) {
+        if (this.isStopped) handleStoppedNotification((0, _notificationFactories.errorNotification)(err), this);
+        else {
             this.isStopped = true;
             this._error(err);
         }
     };
     Subscriber.prototype.complete = function() {
-        if (!this.isStopped) {
+        if (this.isStopped) handleStoppedNotification((0, _notificationFactories.COMPLETE_NOTIFICATION), this);
+        else {
             this.isStopped = true;
             this._complete();
         }
     };
     Subscriber.prototype.unsubscribe = function() {
-        if (this.closed) return;
-        this.isStopped = true;
-        _super.prototype.unsubscribe.call(this);
+        if (!this.closed) {
+            this.isStopped = true;
+            _super.prototype.unsubscribe.call(this);
+            this.destination = null;
+        }
     };
     Subscriber.prototype._next = function(value) {
         this.destination.next(value);
     };
     Subscriber.prototype._error = function(err) {
-        this.destination.error(err);
-        this.unsubscribe();
+        try {
+            this.destination.error(err);
+        } finally{
+            this.unsubscribe();
+        }
     };
     Subscriber.prototype._complete = function() {
-        this.destination.complete();
-        this.unsubscribe();
-    };
-    Subscriber.prototype._unsubscribeAndRecycle = function() {
-        var _parentOrParents = this._parentOrParents;
-        this._parentOrParents = null;
-        this.unsubscribe();
-        this.closed = false;
-        this.isStopped = false;
-        this._parentOrParents = _parentOrParents;
-        return this;
+        try {
+            this.destination.complete();
+        } finally{
+            this.unsubscribe();
+        }
     };
     return Subscriber;
 }((0, _subscription.Subscription));
-var SafeSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(SafeSubscriber, _super);
-    function SafeSubscriber(_parentSubscriber, observerOrNext, error, complete) {
-        var _this = _super.call(this) || this;
-        _this._parentSubscriber = _parentSubscriber;
-        var next;
-        var context = _this;
-        if ((0, _isFunction.isFunction)(observerOrNext)) next = observerOrNext;
-        else if (observerOrNext) {
-            next = observerOrNext.next;
-            error = observerOrNext.error;
-            complete = observerOrNext.complete;
-            if (observerOrNext !== (0, _observer.empty)) {
-                context = Object.create(observerOrNext);
-                if ((0, _isFunction.isFunction)(context.unsubscribe)) _this.add(context.unsubscribe.bind(context));
-                context.unsubscribe = _this.unsubscribe.bind(_this);
-            }
+var _bind = Function.prototype.bind;
+function bind(fn, thisArg) {
+    return _bind.call(fn, thisArg);
+}
+var ConsumerObserver = function() {
+    function ConsumerObserver(partialObserver) {
+        this.partialObserver = partialObserver;
+    }
+    ConsumerObserver.prototype.next = function(value) {
+        var partialObserver = this.partialObserver;
+        if (partialObserver.next) try {
+            partialObserver.next(value);
+        } catch (error) {
+            handleUnhandledError(error);
         }
-        _this._context = context;
-        _this._next = next;
-        _this._error = error;
-        _this._complete = complete;
+    };
+    ConsumerObserver.prototype.error = function(err) {
+        var partialObserver = this.partialObserver;
+        if (partialObserver.error) try {
+            partialObserver.error(err);
+        } catch (error) {
+            handleUnhandledError(error);
+        }
+        else handleUnhandledError(err);
+    };
+    ConsumerObserver.prototype.complete = function() {
+        var partialObserver = this.partialObserver;
+        if (partialObserver.complete) try {
+            partialObserver.complete();
+        } catch (error) {
+            handleUnhandledError(error);
+        }
+    };
+    return ConsumerObserver;
+}();
+var SafeSubscriber = function(_super) {
+    (0, _tslib.__extends)(SafeSubscriber, _super);
+    function SafeSubscriber(observerOrNext, error, complete) {
+        var _this = _super.call(this) || this;
+        var partialObserver;
+        if ((0, _isFunction.isFunction)(observerOrNext) || !observerOrNext) partialObserver = {
+            next: observerOrNext !== null && observerOrNext !== void 0 ? observerOrNext : undefined,
+            error: error !== null && error !== void 0 ? error : undefined,
+            complete: complete !== null && complete !== void 0 ? complete : undefined
+        };
+        else {
+            var context_1;
+            if (_this && (0, _config.config).useDeprecatedNextContext) {
+                context_1 = Object.create(observerOrNext);
+                context_1.unsubscribe = function() {
+                    return _this.unsubscribe();
+                };
+                partialObserver = {
+                    next: observerOrNext.next && bind(observerOrNext.next, context_1),
+                    error: observerOrNext.error && bind(observerOrNext.error, context_1),
+                    complete: observerOrNext.complete && bind(observerOrNext.complete, context_1)
+                };
+            } else partialObserver = observerOrNext;
+        }
+        _this.destination = new ConsumerObserver(partialObserver);
         return _this;
     }
-    SafeSubscriber.prototype.next = function(value) {
-        if (!this.isStopped && this._next) {
-            var _parentSubscriber = this._parentSubscriber;
-            if (!(0, _config.config).useDeprecatedSynchronousErrorHandling || !_parentSubscriber.syncErrorThrowable) this.__tryOrUnsub(this._next, value);
-            else if (this.__tryOrSetError(_parentSubscriber, this._next, value)) this.unsubscribe();
-        }
-    };
-    SafeSubscriber.prototype.error = function(err) {
-        if (!this.isStopped) {
-            var _parentSubscriber = this._parentSubscriber;
-            var useDeprecatedSynchronousErrorHandling = (0, _config.config).useDeprecatedSynchronousErrorHandling;
-            if (this._error) {
-                if (!useDeprecatedSynchronousErrorHandling || !_parentSubscriber.syncErrorThrowable) {
-                    this.__tryOrUnsub(this._error, err);
-                    this.unsubscribe();
-                } else {
-                    this.__tryOrSetError(_parentSubscriber, this._error, err);
-                    this.unsubscribe();
-                }
-            } else if (!_parentSubscriber.syncErrorThrowable) {
-                this.unsubscribe();
-                if (useDeprecatedSynchronousErrorHandling) throw err;
-                (0, _hostReportError.hostReportError)(err);
-            } else {
-                if (useDeprecatedSynchronousErrorHandling) {
-                    _parentSubscriber.syncErrorValue = err;
-                    _parentSubscriber.syncErrorThrown = true;
-                } else (0, _hostReportError.hostReportError)(err);
-                this.unsubscribe();
-            }
-        }
-    };
-    SafeSubscriber.prototype.complete = function() {
-        var _this = this;
-        if (!this.isStopped) {
-            var _parentSubscriber = this._parentSubscriber;
-            if (this._complete) {
-                var wrappedComplete = function() {
-                    return _this._complete.call(_this._context);
-                };
-                if (!(0, _config.config).useDeprecatedSynchronousErrorHandling || !_parentSubscriber.syncErrorThrowable) {
-                    this.__tryOrUnsub(wrappedComplete);
-                    this.unsubscribe();
-                } else {
-                    this.__tryOrSetError(_parentSubscriber, wrappedComplete);
-                    this.unsubscribe();
-                }
-            } else this.unsubscribe();
-        }
-    };
-    SafeSubscriber.prototype.__tryOrUnsub = function(fn, value) {
-        try {
-            fn.call(this._context, value);
-        } catch (err) {
-            this.unsubscribe();
-            if ((0, _config.config).useDeprecatedSynchronousErrorHandling) throw err;
-            else (0, _hostReportError.hostReportError)(err);
-        }
-    };
-    SafeSubscriber.prototype.__tryOrSetError = function(parent, fn, value) {
-        if (!(0, _config.config).useDeprecatedSynchronousErrorHandling) throw new Error("bad call");
-        try {
-            fn.call(this._context, value);
-        } catch (err) {
-            if ((0, _config.config).useDeprecatedSynchronousErrorHandling) {
-                parent.syncErrorValue = err;
-                parent.syncErrorThrown = true;
-                return true;
-            } else {
-                (0, _hostReportError.hostReportError)(err);
-                return true;
-            }
-        }
-        return false;
-    };
-    SafeSubscriber.prototype._unsubscribe = function() {
-        var _parentSubscriber = this._parentSubscriber;
-        this._context = null;
-        this._parentSubscriber = null;
-        _parentSubscriber.unsubscribe();
-    };
     return SafeSubscriber;
 }(Subscriber);
+function handleUnhandledError(error) {
+    if ((0, _config.config).useDeprecatedSynchronousErrorHandling) (0, _errorContext.captureError)(error);
+    else (0, _reportUnhandledError.reportUnhandledError)(error);
+}
+function defaultErrorHandler(err) {
+    throw err;
+}
+function handleStoppedNotification(notification, subscriber) {
+    var onStoppedNotification = (0, _config.config).onStoppedNotification;
+    onStoppedNotification && (0, _timeoutProvider.timeoutProvider).setTimeout(function() {
+        return onStoppedNotification(notification, subscriber);
+    });
+}
+var EMPTY_OBSERVER = {
+    closed: true,
+    next: (0, _noop.noop),
+    error: defaultErrorHandler,
+    complete: (0, _noop.noop)
+};
 
-},{"tslib":"j8TBX","./util/isFunction":"gyncl","./Observer":"1lzbH","./Subscription":"6K2jD","../internal/symbol/rxSubscriber":"kD4xv","./config":"f9d8E","./util/hostReportError":"jXrF8","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"j8TBX":[function(require,module,exports) {
-/*! *****************************************************************************
+},{"tslib":"lRdW5","./util/isFunction":"dEyyK","./Subscription":"lFyhg","./config":"fX0gC","./util/reportUnhandledError":"aVM3K","./util/noop":"l8uEm","./NotificationFactories":"hwqFj","./scheduler/timeoutProvider":"1FR9J","./util/errorContext":"gU38l","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"lRdW5":[function(require,module,exports) {
+/******************************************************************************
 Copyright (c) Microsoft Corporation.
 
 Permission to use, copy, modify, and/or distribute this software for any
@@ -1050,6 +1204,10 @@ parcelHelpers.export(exports, "__assign", ()=>__assign);
 parcelHelpers.export(exports, "__rest", ()=>__rest);
 parcelHelpers.export(exports, "__decorate", ()=>__decorate);
 parcelHelpers.export(exports, "__param", ()=>__param);
+parcelHelpers.export(exports, "__esDecorate", ()=>__esDecorate);
+parcelHelpers.export(exports, "__runInitializers", ()=>__runInitializers);
+parcelHelpers.export(exports, "__propKey", ()=>__propKey);
+parcelHelpers.export(exports, "__setFunctionName", ()=>__setFunctionName);
 parcelHelpers.export(exports, "__metadata", ()=>__metadata);
 parcelHelpers.export(exports, "__awaiter", ()=>__awaiter);
 parcelHelpers.export(exports, "__generator", ()=>__generator);
@@ -1057,8 +1215,9 @@ parcelHelpers.export(exports, "__createBinding", ()=>__createBinding);
 parcelHelpers.export(exports, "__exportStar", ()=>__exportStar);
 parcelHelpers.export(exports, "__values", ()=>__values);
 parcelHelpers.export(exports, "__read", ()=>__read);
-parcelHelpers.export(exports, "__spread", ()=>__spread);
-parcelHelpers.export(exports, "__spreadArrays", ()=>__spreadArrays);
+/** @deprecated */ parcelHelpers.export(exports, "__spread", ()=>__spread);
+/** @deprecated */ parcelHelpers.export(exports, "__spreadArrays", ()=>__spreadArrays);
+parcelHelpers.export(exports, "__spreadArray", ()=>__spreadArray);
 parcelHelpers.export(exports, "__await", ()=>__await);
 parcelHelpers.export(exports, "__asyncGenerator", ()=>__asyncGenerator);
 parcelHelpers.export(exports, "__asyncDelegator", ()=>__asyncDelegator);
@@ -1068,17 +1227,19 @@ parcelHelpers.export(exports, "__importStar", ()=>__importStar);
 parcelHelpers.export(exports, "__importDefault", ()=>__importDefault);
 parcelHelpers.export(exports, "__classPrivateFieldGet", ()=>__classPrivateFieldGet);
 parcelHelpers.export(exports, "__classPrivateFieldSet", ()=>__classPrivateFieldSet);
+parcelHelpers.export(exports, "__classPrivateFieldIn", ()=>__classPrivateFieldIn);
 var extendStatics = function(d, b) {
     extendStatics = Object.setPrototypeOf || ({
         __proto__: []
     }) instanceof Array && function(d, b) {
         d.__proto__ = b;
     } || function(d, b) {
-        for(var p in b)if (b.hasOwnProperty(p)) d[p] = b[p];
+        for(var p in b)if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p];
     };
     return extendStatics(d, b);
 };
 function __extends(d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
     function __() {
         this.constructor = d;
@@ -1113,6 +1274,56 @@ function __param(paramIndex, decorator) {
     return function(target, key) {
         decorator(target, key, paramIndex);
     };
+}
+function __esDecorate(ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {
+    function accept(f) {
+        if (f !== void 0 && typeof f !== "function") throw new TypeError("Function expected");
+        return f;
+    }
+    var kind = contextIn.kind, key = kind === "getter" ? "get" : kind === "setter" ? "set" : "value";
+    var target = !descriptorIn && ctor ? contextIn["static"] ? ctor : ctor.prototype : null;
+    var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});
+    var _, done = false;
+    for(var i = decorators.length - 1; i >= 0; i--){
+        var context = {};
+        for(var p in contextIn)context[p] = p === "access" ? {} : contextIn[p];
+        for(var p in contextIn.access)context.access[p] = contextIn.access[p];
+        context.addInitializer = function(f) {
+            if (done) throw new TypeError("Cannot add initializers after decoration has completed");
+            extraInitializers.push(accept(f || null));
+        };
+        var result = (0, decorators[i])(kind === "accessor" ? {
+            get: descriptor.get,
+            set: descriptor.set
+        } : descriptor[key], context);
+        if (kind === "accessor") {
+            if (result === void 0) continue;
+            if (result === null || typeof result !== "object") throw new TypeError("Object expected");
+            if (_ = accept(result.get)) descriptor.get = _;
+            if (_ = accept(result.set)) descriptor.set = _;
+            if (_ = accept(result.init)) initializers.push(_);
+        } else if (_ = accept(result)) {
+            if (kind === "field") initializers.push(_);
+            else descriptor[key] = _;
+        }
+    }
+    if (target) Object.defineProperty(target, contextIn.name, descriptor);
+    done = true;
+}
+function __runInitializers(thisArg, initializers, value) {
+    var useValue = arguments.length > 2;
+    for(var i = 0; i < initializers.length; i++)value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);
+    return useValue ? value : void 0;
+}
+function __propKey(x) {
+    return typeof x === "symbol" ? x : "".concat(x);
+}
+function __setFunctionName(f, name, prefix) {
+    if (typeof name === "symbol") name = name.description ? "[".concat(name.description, "]") : "";
+    return Object.defineProperty(f, "name", {
+        configurable: true,
+        value: prefix ? "".concat(prefix, " ", name) : name
+    });
 }
 function __metadata(metadataKey, metadataValue) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
@@ -1171,7 +1382,7 @@ function __generator(thisArg, body) {
     }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while(_)try {
+        while(g && (g = 0, op[0] && (_ = 0)), _)try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [
                 op[0] & 2,
@@ -1239,12 +1450,22 @@ function __generator(thisArg, body) {
         };
     }
 }
-function __createBinding(o, m, k, k2) {
+var __createBinding = Object.create ? function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) desc = {
+        enumerable: true,
+        get: function() {
+            return m[k];
+        }
+    };
+    Object.defineProperty(o, k2, desc);
+} : function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     o[k2] = m[k];
-}
-function __exportStar(m, exports) {
-    for(var p in m)if (p !== "default" && !exports.hasOwnProperty(p)) exports[p] = m[p];
+};
+function __exportStar(m, o) {
+    for(var p in m)if (p !== "default" && !Object.prototype.hasOwnProperty.call(o, p)) __createBinding(o, m, p);
 }
 function __values(o) {
     var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
@@ -1287,6 +1508,15 @@ function __spreadArrays() {
     for(var s = 0, i = 0, il = arguments.length; i < il; i++)s += arguments[i].length;
     for(var r = Array(s), k = 0, i = 0; i < il; i++)for(var a = arguments[i], j = 0, jl = a.length; j < jl; j++, k++)r[k] = a[j];
     return r;
+}
+function __spreadArray(to, from, pack) {
+    if (pack || arguments.length === 2) {
+        for(var i = 0, l = from.length, ar; i < l; i++)if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
 }
 function __await(v) {
     return this instanceof __await ? (this.v = v, this) : new __await(v);
@@ -1340,7 +1570,7 @@ function __asyncDelegator(o) {
         i[n] = o[n] ? function(v) {
             return (p = !p) ? {
                 value: __await(o[n](v)),
-                done: n === "return"
+                done: false
             } : f ? f(v) : v;
         } : f;
     }
@@ -1374,13 +1604,21 @@ function __makeTemplateObject(cooked, raw) {
     else cooked.raw = raw;
     return cooked;
 }
+var __setModuleDefault = Object.create ? function(o, v) {
+    Object.defineProperty(o, "default", {
+        enumerable: true,
+        value: v
+    });
+} : function(o, v) {
+    o["default"] = v;
+};
 function __importStar(mod) {
     if (mod && mod.__esModule) return mod;
     var result = {};
     if (mod != null) {
-        for(var k in mod)if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
+        for(var k in mod)if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
     }
-    result.default = mod;
+    __setModuleDefault(result, mod);
     return result;
 }
 function __importDefault(mod) {
@@ -1388,14 +1626,20 @@ function __importDefault(mod) {
         default: mod
     };
 }
-function __classPrivateFieldGet(receiver, privateMap) {
-    if (!privateMap.has(receiver)) throw new TypeError("attempted to get private field on non-instance");
-    return privateMap.get(receiver);
+function __classPrivateFieldGet(receiver, state, kind, f) {
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+    return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 }
-function __classPrivateFieldSet(receiver, privateMap, value) {
-    if (!privateMap.has(receiver)) throw new TypeError("attempted to set private field on non-instance");
-    privateMap.set(receiver, value);
-    return value;
+function __classPrivateFieldSet(receiver, state, value, kind, f) {
+    if (kind === "m") throw new TypeError("Private method is not writable");
+    if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+    if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+    return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+}
+function __classPrivateFieldIn(state, receiver) {
+    if (receiver === null || typeof receiver !== "object" && typeof receiver !== "function") throw new TypeError("Cannot use 'in' operator on non-object");
+    return typeof state === "function" ? receiver === state : state.has(receiver);
 }
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"gkKU3":[function(require,module,exports) {
@@ -1428,246 +1672,307 @@ exports.export = function(dest, destName, get) {
     });
 };
 
-},{}],"gyncl":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{}],"dEyyK":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "isFunction", ()=>isFunction);
-function isFunction(x) {
-    return typeof x === "function";
+function isFunction(value) {
+    return typeof value === "function";
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1lzbH":[function(require,module,exports) {
-/** PURE_IMPORTS_START _config,_util_hostReportError PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "empty", ()=>empty);
-var _config = require("./config");
-var _hostReportError = require("./util/hostReportError");
-var empty = {
-    closed: true,
-    next: function(value) {},
-    error: function(err) {
-        if ((0, _config.config).useDeprecatedSynchronousErrorHandling) throw err;
-        else (0, _hostReportError.hostReportError)(err);
-    },
-    complete: function() {}
-};
-
-},{"./config":"f9d8E","./util/hostReportError":"jXrF8","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"f9d8E":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "config", ()=>config);
-var _enable_super_gross_mode_that_will_cause_bad_things = false;
-var config = {
-    Promise: undefined,
-    set useDeprecatedSynchronousErrorHandling (value){
-        if (value) {
-            var error = /*@__PURE__*/ new Error();
-            /*@__PURE__*/ console.warn("DEPRECATED! RxJS was set to use deprecated synchronous error handling behavior by code at: \n" + error.stack);
-        } else if (_enable_super_gross_mode_that_will_cause_bad_things) /*@__PURE__*/ console.log("RxJS: Back to a better error behavior. Thank you. <3");
-        _enable_super_gross_mode_that_will_cause_bad_things = value;
-    },
-    get useDeprecatedSynchronousErrorHandling () {
-        return _enable_super_gross_mode_that_will_cause_bad_things;
-    }
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"jXrF8":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "hostReportError", ()=>hostReportError);
-function hostReportError(err) {
-    setTimeout(function() {
-        throw err;
-    }, 0);
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6K2jD":[function(require,module,exports) {
-/** PURE_IMPORTS_START _util_isArray,_util_isObject,_util_isFunction,_util_UnsubscriptionError PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"lFyhg":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Subscription", ()=>Subscription);
-var _isArray = require("./util/isArray");
-var _isObject = require("./util/isObject");
+parcelHelpers.export(exports, "EMPTY_SUBSCRIPTION", ()=>EMPTY_SUBSCRIPTION);
+parcelHelpers.export(exports, "isSubscription", ()=>isSubscription);
+var _tslib = require("tslib");
 var _isFunction = require("./util/isFunction");
 var _unsubscriptionError = require("./util/UnsubscriptionError");
-var Subscription = /*@__PURE__*/ function() {
-    function Subscription(unsubscribe) {
+var _arrRemove = require("./util/arrRemove");
+var Subscription = function() {
+    function Subscription(initialTeardown) {
+        this.initialTeardown = initialTeardown;
         this.closed = false;
-        this._parentOrParents = null;
-        this._subscriptions = null;
-        if (unsubscribe) {
-            this._ctorUnsubscribe = true;
-            this._unsubscribe = unsubscribe;
-        }
+        this._parentage = null;
+        this._finalizers = null;
     }
     Subscription.prototype.unsubscribe = function() {
+        var e_1, _a, e_2, _b;
         var errors;
-        if (this.closed) return;
-        var _a = this, _parentOrParents = _a._parentOrParents, _ctorUnsubscribe = _a._ctorUnsubscribe, _unsubscribe = _a._unsubscribe, _subscriptions = _a._subscriptions;
-        this.closed = true;
-        this._parentOrParents = null;
-        this._subscriptions = null;
-        if (_parentOrParents instanceof Subscription) _parentOrParents.remove(this);
-        else if (_parentOrParents !== null) for(var index = 0; index < _parentOrParents.length; ++index){
-            var parent_1 = _parentOrParents[index];
-            parent_1.remove(this);
-        }
-        if ((0, _isFunction.isFunction)(_unsubscribe)) {
-            if (_ctorUnsubscribe) this._unsubscribe = undefined;
-            try {
-                _unsubscribe.call(this);
+        if (!this.closed) {
+            this.closed = true;
+            var _parentage = this._parentage;
+            if (_parentage) {
+                this._parentage = null;
+                if (Array.isArray(_parentage)) try {
+                    for(var _parentage_1 = (0, _tslib.__values)(_parentage), _parentage_1_1 = _parentage_1.next(); !_parentage_1_1.done; _parentage_1_1 = _parentage_1.next()){
+                        var parent_1 = _parentage_1_1.value;
+                        parent_1.remove(this);
+                    }
+                } catch (e_1_1) {
+                    e_1 = {
+                        error: e_1_1
+                    };
+                } finally{
+                    try {
+                        if (_parentage_1_1 && !_parentage_1_1.done && (_a = _parentage_1.return)) _a.call(_parentage_1);
+                    } finally{
+                        if (e_1) throw e_1.error;
+                    }
+                }
+                else _parentage.remove(this);
+            }
+            var initialFinalizer = this.initialTeardown;
+            if ((0, _isFunction.isFunction)(initialFinalizer)) try {
+                initialFinalizer();
             } catch (e) {
-                errors = e instanceof (0, _unsubscriptionError.UnsubscriptionError) ? flattenUnsubscriptionErrors(e.errors) : [
+                errors = e instanceof (0, _unsubscriptionError.UnsubscriptionError) ? e.errors : [
                     e
                 ];
             }
-        }
-        if ((0, _isArray.isArray)(_subscriptions)) {
-            var index = -1;
-            var len = _subscriptions.length;
-            while(++index < len){
-                var sub = _subscriptions[index];
-                if ((0, _isObject.isObject)(sub)) try {
-                    sub.unsubscribe();
-                } catch (e) {
-                    errors = errors || [];
-                    if (e instanceof (0, _unsubscriptionError.UnsubscriptionError)) errors = errors.concat(flattenUnsubscriptionErrors(e.errors));
-                    else errors.push(e);
+            var _finalizers = this._finalizers;
+            if (_finalizers) {
+                this._finalizers = null;
+                try {
+                    for(var _finalizers_1 = (0, _tslib.__values)(_finalizers), _finalizers_1_1 = _finalizers_1.next(); !_finalizers_1_1.done; _finalizers_1_1 = _finalizers_1.next()){
+                        var finalizer = _finalizers_1_1.value;
+                        try {
+                            execFinalizer(finalizer);
+                        } catch (err) {
+                            errors = errors !== null && errors !== void 0 ? errors : [];
+                            if (err instanceof (0, _unsubscriptionError.UnsubscriptionError)) errors = (0, _tslib.__spreadArray)((0, _tslib.__spreadArray)([], (0, _tslib.__read)(errors)), (0, _tslib.__read)(err.errors));
+                            else errors.push(err);
+                        }
+                    }
+                } catch (e_2_1) {
+                    e_2 = {
+                        error: e_2_1
+                    };
+                } finally{
+                    try {
+                        if (_finalizers_1_1 && !_finalizers_1_1.done && (_b = _finalizers_1.return)) _b.call(_finalizers_1);
+                    } finally{
+                        if (e_2) throw e_2.error;
+                    }
                 }
             }
+            if (errors) throw new (0, _unsubscriptionError.UnsubscriptionError)(errors);
         }
-        if (errors) throw new (0, _unsubscriptionError.UnsubscriptionError)(errors);
     };
     Subscription.prototype.add = function(teardown) {
-        var subscription = teardown;
-        if (!teardown) return Subscription.EMPTY;
-        switch(typeof teardown){
-            case "function":
-                subscription = new Subscription(teardown);
-            case "object":
-                if (subscription === this || subscription.closed || typeof subscription.unsubscribe !== "function") return subscription;
-                else if (this.closed) {
-                    subscription.unsubscribe();
-                    return subscription;
-                } else if (!(subscription instanceof Subscription)) {
-                    var tmp = subscription;
-                    subscription = new Subscription();
-                    subscription._subscriptions = [
-                        tmp
-                    ];
+        var _a;
+        if (teardown && teardown !== this) {
+            if (this.closed) execFinalizer(teardown);
+            else {
+                if (teardown instanceof Subscription) {
+                    if (teardown.closed || teardown._hasParent(this)) return;
+                    teardown._addParent(this);
                 }
-                break;
-            default:
-                throw new Error("unrecognized teardown " + teardown + " added to Subscription.");
-        }
-        var _parentOrParents = subscription._parentOrParents;
-        if (_parentOrParents === null) subscription._parentOrParents = this;
-        else if (_parentOrParents instanceof Subscription) {
-            if (_parentOrParents === this) return subscription;
-            subscription._parentOrParents = [
-                _parentOrParents,
-                this
-            ];
-        } else if (_parentOrParents.indexOf(this) === -1) _parentOrParents.push(this);
-        else return subscription;
-        var subscriptions = this._subscriptions;
-        if (subscriptions === null) this._subscriptions = [
-            subscription
-        ];
-        else subscriptions.push(subscription);
-        return subscription;
-    };
-    Subscription.prototype.remove = function(subscription) {
-        var subscriptions = this._subscriptions;
-        if (subscriptions) {
-            var subscriptionIndex = subscriptions.indexOf(subscription);
-            if (subscriptionIndex !== -1) subscriptions.splice(subscriptionIndex, 1);
+                (this._finalizers = (_a = this._finalizers) !== null && _a !== void 0 ? _a : []).push(teardown);
+            }
         }
     };
-    Subscription.EMPTY = function(empty) {
+    Subscription.prototype._hasParent = function(parent) {
+        var _parentage = this._parentage;
+        return _parentage === parent || Array.isArray(_parentage) && _parentage.includes(parent);
+    };
+    Subscription.prototype._addParent = function(parent) {
+        var _parentage = this._parentage;
+        this._parentage = Array.isArray(_parentage) ? (_parentage.push(parent), _parentage) : _parentage ? [
+            _parentage,
+            parent
+        ] : parent;
+    };
+    Subscription.prototype._removeParent = function(parent) {
+        var _parentage = this._parentage;
+        if (_parentage === parent) this._parentage = null;
+        else if (Array.isArray(_parentage)) (0, _arrRemove.arrRemove)(_parentage, parent);
+    };
+    Subscription.prototype.remove = function(teardown) {
+        var _finalizers = this._finalizers;
+        _finalizers && (0, _arrRemove.arrRemove)(_finalizers, teardown);
+        if (teardown instanceof Subscription) teardown._removeParent(this);
+    };
+    Subscription.EMPTY = function() {
+        var empty = new Subscription();
         empty.closed = true;
         return empty;
-    }(new Subscription());
+    }();
     return Subscription;
 }();
-function flattenUnsubscriptionErrors(errors) {
-    return errors.reduce(function(errs, err) {
-        return errs.concat(err instanceof (0, _unsubscriptionError.UnsubscriptionError) ? err.errors : err);
-    }, []);
+var EMPTY_SUBSCRIPTION = Subscription.EMPTY;
+function isSubscription(value) {
+    return value instanceof Subscription || value && "closed" in value && (0, _isFunction.isFunction)(value.remove) && (0, _isFunction.isFunction)(value.add) && (0, _isFunction.isFunction)(value.unsubscribe);
+}
+function execFinalizer(finalizer) {
+    if ((0, _isFunction.isFunction)(finalizer)) finalizer();
+    else finalizer.unsubscribe();
 }
 
-},{"./util/isArray":"8lyov","./util/isObject":"4BZjK","./util/isFunction":"gyncl","./util/UnsubscriptionError":"cAnDM","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8lyov":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "isArray", ()=>isArray);
-var isArray = /*@__PURE__*/ function() {
-    return Array.isArray || function(x) {
-        return x && typeof x.length === "number";
-    };
-}();
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4BZjK":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "isObject", ()=>isObject);
-function isObject(x) {
-    return x !== null && typeof x === "object";
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cAnDM":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"tslib":"lRdW5","./util/isFunction":"dEyyK","./util/UnsubscriptionError":"GSF7Z","./util/arrRemove":"dLHeW","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"GSF7Z":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "UnsubscriptionError", ()=>UnsubscriptionError);
-var UnsubscriptionErrorImpl = /*@__PURE__*/ function() {
-    function UnsubscriptionErrorImpl(errors) {
-        Error.call(this);
+var _createErrorClass = require("./createErrorClass");
+var UnsubscriptionError = (0, _createErrorClass.createErrorClass)(function(_super) {
+    return function UnsubscriptionErrorImpl(errors) {
+        _super(this);
         this.message = errors ? errors.length + " errors occurred during unsubscription:\n" + errors.map(function(err, i) {
             return i + 1 + ") " + err.toString();
         }).join("\n  ") : "";
         this.name = "UnsubscriptionError";
         this.errors = errors;
-        return this;
-    }
-    UnsubscriptionErrorImpl.prototype = /*@__PURE__*/ Object.create(Error.prototype);
-    return UnsubscriptionErrorImpl;
-}();
-var UnsubscriptionError = UnsubscriptionErrorImpl;
+    };
+});
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kD4xv":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./createErrorClass":"i1v8Q","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"i1v8Q":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "rxSubscriber", ()=>rxSubscriber);
-parcelHelpers.export(exports, "$$rxSubscriber", ()=>$$rxSubscriber);
-var rxSubscriber = /*@__PURE__*/ function() {
-    return typeof Symbol === "function" ? /*@__PURE__*/ Symbol("rxSubscriber") : "@@rxSubscriber_" + /*@__PURE__*/ Math.random();
-}();
-var $$rxSubscriber = rxSubscriber;
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eZHqn":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Subscriber,_symbol_rxSubscriber,_Observer PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "toSubscriber", ()=>toSubscriber);
-var _subscriber = require("../Subscriber");
-var _rxSubscriber = require("../symbol/rxSubscriber");
-var _observer = require("../Observer");
-function toSubscriber(nextOrObserver, error, complete) {
-    if (nextOrObserver) {
-        if (nextOrObserver instanceof (0, _subscriber.Subscriber)) return nextOrObserver;
-        if (nextOrObserver[0, _rxSubscriber.rxSubscriber]) return nextOrObserver[0, _rxSubscriber.rxSubscriber]();
-    }
-    if (!nextOrObserver && !error && !complete) return new (0, _subscriber.Subscriber)((0, _observer.empty));
-    return new (0, _subscriber.Subscriber)(nextOrObserver, error, complete);
+parcelHelpers.export(exports, "createErrorClass", ()=>createErrorClass);
+function createErrorClass(createImpl) {
+    var _super = function(instance) {
+        Error.call(instance);
+        instance.stack = new Error().stack;
+    };
+    var ctorFunc = createImpl(_super);
+    ctorFunc.prototype = Object.create(Error.prototype);
+    ctorFunc.prototype.constructor = ctorFunc;
+    return ctorFunc;
 }
 
-},{"../Subscriber":"kpS17","../symbol/rxSubscriber":"kD4xv","../Observer":"1lzbH","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6YJAq":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"dLHeW":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "arrRemove", ()=>arrRemove);
+function arrRemove(arr, item) {
+    if (arr) {
+        var index = arr.indexOf(item);
+        0 <= index && arr.splice(index, 1);
+    }
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"fX0gC":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "config", ()=>config);
+var config = {
+    onUnhandledError: null,
+    onStoppedNotification: null,
+    Promise: undefined,
+    useDeprecatedSynchronousErrorHandling: false,
+    useDeprecatedNextContext: false
+};
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"aVM3K":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "reportUnhandledError", ()=>reportUnhandledError);
+var _config = require("../config");
+var _timeoutProvider = require("../scheduler/timeoutProvider");
+function reportUnhandledError(err) {
+    (0, _timeoutProvider.timeoutProvider).setTimeout(function() {
+        var onUnhandledError = (0, _config.config).onUnhandledError;
+        if (onUnhandledError) onUnhandledError(err);
+        else throw err;
+    });
+}
+
+},{"../config":"fX0gC","../scheduler/timeoutProvider":"1FR9J","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1FR9J":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "timeoutProvider", ()=>timeoutProvider);
+var _tslib = require("tslib");
+var timeoutProvider = {
+    setTimeout: function(handler, timeout) {
+        var args = [];
+        for(var _i = 2; _i < arguments.length; _i++)args[_i - 2] = arguments[_i];
+        var delegate = timeoutProvider.delegate;
+        if (delegate === null || delegate === void 0 ? void 0 : delegate.setTimeout) return delegate.setTimeout.apply(delegate, (0, _tslib.__spreadArray)([
+            handler,
+            timeout
+        ], (0, _tslib.__read)(args)));
+        return setTimeout.apply(void 0, (0, _tslib.__spreadArray)([
+            handler,
+            timeout
+        ], (0, _tslib.__read)(args)));
+    },
+    clearTimeout: function(handle) {
+        var delegate = timeoutProvider.delegate;
+        return ((delegate === null || delegate === void 0 ? void 0 : delegate.clearTimeout) || clearTimeout)(handle);
+    },
+    delegate: undefined
+};
+
+},{"tslib":"lRdW5","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"l8uEm":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "noop", ()=>noop);
+function noop() {}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"hwqFj":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "COMPLETE_NOTIFICATION", ()=>COMPLETE_NOTIFICATION);
+parcelHelpers.export(exports, "errorNotification", ()=>errorNotification);
+parcelHelpers.export(exports, "nextNotification", ()=>nextNotification);
+parcelHelpers.export(exports, "createNotification", ()=>createNotification);
+var COMPLETE_NOTIFICATION = function() {
+    return createNotification("C", undefined, undefined);
+}();
+function errorNotification(error) {
+    return createNotification("E", undefined, error);
+}
+function nextNotification(value) {
+    return createNotification("N", value, undefined);
+}
+function createNotification(kind, value, error) {
+    return {
+        kind: kind,
+        value: value,
+        error: error
+    };
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"gU38l":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "errorContext", ()=>errorContext);
+parcelHelpers.export(exports, "captureError", ()=>captureError);
+var _config = require("../config");
+var context = null;
+function errorContext(cb) {
+    if ((0, _config.config).useDeprecatedSynchronousErrorHandling) {
+        var isRoot = !context;
+        if (isRoot) context = {
+            errorThrown: false,
+            error: null
+        };
+        cb();
+        if (isRoot) {
+            var _a = context, errorThrown = _a.errorThrown, error = _a.error;
+            context = null;
+            if (errorThrown) throw error;
+        }
+    } else cb();
+}
+function captureError(err) {
+    if ((0, _config.config).useDeprecatedSynchronousErrorHandling && context) {
+        context.errorThrown = true;
+        context.error = err;
+    }
+}
+
+},{"../config":"fX0gC","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"byHtV":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "observable", ()=>observable);
-var observable = /*@__PURE__*/ function() {
+var observable = function() {
     return typeof Symbol === "function" && Symbol.observable || "@@observable";
 }();
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"35htl":[function(require,module,exports) {
-/** PURE_IMPORTS_START _identity PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1GN6U":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "pipe", ()=>pipe);
 parcelHelpers.export(exports, "pipeFromArray", ()=>pipeFromArray);
@@ -1687,32 +1992,34 @@ function pipeFromArray(fns) {
     };
 }
 
-},{"./identity":"gxakv","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"gxakv":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./identity":"8Xfg6","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8Xfg6":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "identity", ()=>identity);
 function identity(x) {
     return x;
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"fLneT":[function(require,module,exports) {
-/** PURE_IMPORTS_START _AsyncAction,_AsyncScheduler PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"bKyC1":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "asyncScheduler", ()=>asyncScheduler);
 parcelHelpers.export(exports, "async", ()=>async);
 var _asyncAction = require("./AsyncAction");
 var _asyncScheduler = require("./AsyncScheduler");
-var asyncScheduler = /*@__PURE__*/ new (0, _asyncScheduler.AsyncScheduler)((0, _asyncAction.AsyncAction));
+var asyncScheduler = new (0, _asyncScheduler.AsyncScheduler)((0, _asyncAction.AsyncAction));
 var async = asyncScheduler;
 
-},{"./AsyncAction":"6gca2","./AsyncScheduler":"8eLwR","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6gca2":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Action PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./AsyncAction":"26t3B","./AsyncScheduler":"c1rfP","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"26t3B":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "AsyncAction", ()=>AsyncAction);
 var _tslib = require("tslib");
 var _action = require("./Action");
-var AsyncAction = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(AsyncAction, _super);
+var _intervalProvider = require("./intervalProvider");
+var _arrRemove = require("../util/arrRemove");
+var AsyncAction = function(_super) {
+    (0, _tslib.__extends)(AsyncAction, _super);
     function AsyncAction(scheduler, work) {
         var _this = _super.call(this, scheduler, work) || this;
         _this.scheduler = scheduler;
@@ -1721,6 +2028,7 @@ var AsyncAction = /*@__PURE__*/ function(_super) {
         return _this;
     }
     AsyncAction.prototype.schedule = function(state, delay) {
+        var _a;
         if (delay === void 0) delay = 0;
         if (this.closed) return this;
         this.state = state;
@@ -1729,17 +2037,17 @@ var AsyncAction = /*@__PURE__*/ function(_super) {
         if (id != null) this.id = this.recycleAsyncId(scheduler, id, delay);
         this.pending = true;
         this.delay = delay;
-        this.id = this.id || this.requestAsyncId(scheduler, this.id, delay);
+        this.id = (_a = this.id) !== null && _a !== void 0 ? _a : this.requestAsyncId(scheduler, this.id, delay);
         return this;
     };
-    AsyncAction.prototype.requestAsyncId = function(scheduler, id, delay) {
+    AsyncAction.prototype.requestAsyncId = function(scheduler, _id, delay) {
         if (delay === void 0) delay = 0;
-        return setInterval(scheduler.flush.bind(scheduler, this), delay);
+        return (0, _intervalProvider.intervalProvider).setInterval(scheduler.flush.bind(scheduler, this), delay);
     };
-    AsyncAction.prototype.recycleAsyncId = function(scheduler, id, delay) {
+    AsyncAction.prototype.recycleAsyncId = function(_scheduler, id, delay) {
         if (delay === void 0) delay = 0;
-        if (delay !== null && this.delay === delay && this.pending === false) return id;
-        clearInterval(id);
+        if (delay != null && this.delay === delay && this.pending === false) return id;
+        if (id != null) (0, _intervalProvider.intervalProvider).clearInterval(id);
         return undefined;
     };
     AsyncAction.prototype.execute = function(state, delay) {
@@ -1749,44 +2057,43 @@ var AsyncAction = /*@__PURE__*/ function(_super) {
         if (error) return error;
         else if (this.pending === false && this.id != null) this.id = this.recycleAsyncId(this.scheduler, this.id, null);
     };
-    AsyncAction.prototype._execute = function(state, delay) {
+    AsyncAction.prototype._execute = function(state, _delay) {
         var errored = false;
-        var errorValue = undefined;
+        var errorValue;
         try {
             this.work(state);
         } catch (e) {
             errored = true;
-            errorValue = !!e && e || new Error(e);
+            errorValue = e ? e : new Error("Scheduled action threw falsy error");
         }
         if (errored) {
             this.unsubscribe();
             return errorValue;
         }
     };
-    AsyncAction.prototype._unsubscribe = function() {
-        var id = this.id;
-        var scheduler = this.scheduler;
-        var actions = scheduler.actions;
-        var index = actions.indexOf(this);
-        this.work = null;
-        this.state = null;
-        this.pending = false;
-        this.scheduler = null;
-        if (index !== -1) actions.splice(index, 1);
-        if (id != null) this.id = this.recycleAsyncId(scheduler, id, null);
-        this.delay = null;
+    AsyncAction.prototype.unsubscribe = function() {
+        if (!this.closed) {
+            var _a = this, id = _a.id, scheduler = _a.scheduler;
+            var actions = scheduler.actions;
+            this.work = this.state = this.scheduler = null;
+            this.pending = false;
+            (0, _arrRemove.arrRemove)(actions, this);
+            if (id != null) this.id = this.recycleAsyncId(scheduler, id, null);
+            this.delay = null;
+            _super.prototype.unsubscribe.call(this);
+        }
     };
     return AsyncAction;
 }((0, _action.Action));
 
-},{"tslib":"j8TBX","./Action":"htZXH","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"htZXH":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Subscription PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"tslib":"lRdW5","./Action":"iPCnX","./intervalProvider":"1Kd8E","../util/arrRemove":"dLHeW","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"iPCnX":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Action", ()=>Action);
 var _tslib = require("tslib");
 var _subscription = require("../Subscription");
-var Action = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(Action, _super);
+var Action = function(_super) {
+    (0, _tslib.__extends)(Action, _super);
     function Action(scheduler, work) {
         return _super.call(this) || this;
     }
@@ -1797,42 +2104,59 @@ var Action = /*@__PURE__*/ function(_super) {
     return Action;
 }((0, _subscription.Subscription));
 
-},{"tslib":"j8TBX","../Subscription":"6K2jD","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8eLwR":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Scheduler PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"tslib":"lRdW5","../Subscription":"lFyhg","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1Kd8E":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "intervalProvider", ()=>intervalProvider);
+var _tslib = require("tslib");
+var intervalProvider = {
+    setInterval: function(handler, timeout) {
+        var args = [];
+        for(var _i = 2; _i < arguments.length; _i++)args[_i - 2] = arguments[_i];
+        var delegate = intervalProvider.delegate;
+        if (delegate === null || delegate === void 0 ? void 0 : delegate.setInterval) return delegate.setInterval.apply(delegate, (0, _tslib.__spreadArray)([
+            handler,
+            timeout
+        ], (0, _tslib.__read)(args)));
+        return setInterval.apply(void 0, (0, _tslib.__spreadArray)([
+            handler,
+            timeout
+        ], (0, _tslib.__read)(args)));
+    },
+    clearInterval: function(handle) {
+        var delegate = intervalProvider.delegate;
+        return ((delegate === null || delegate === void 0 ? void 0 : delegate.clearInterval) || clearInterval)(handle);
+    },
+    delegate: undefined
+};
+
+},{"tslib":"lRdW5","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"c1rfP":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "AsyncScheduler", ()=>AsyncScheduler);
 var _tslib = require("tslib");
 var _scheduler = require("../Scheduler");
-var AsyncScheduler = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(AsyncScheduler, _super);
+var AsyncScheduler = function(_super) {
+    (0, _tslib.__extends)(AsyncScheduler, _super);
     function AsyncScheduler(SchedulerAction, now) {
         if (now === void 0) now = (0, _scheduler.Scheduler).now;
-        var _this = _super.call(this, SchedulerAction, function() {
-            if (AsyncScheduler.delegate && AsyncScheduler.delegate !== _this) return AsyncScheduler.delegate.now();
-            else return now();
-        }) || this;
+        var _this = _super.call(this, SchedulerAction, now) || this;
         _this.actions = [];
-        _this.active = false;
-        _this.scheduled = undefined;
+        _this._active = false;
         return _this;
     }
-    AsyncScheduler.prototype.schedule = function(work, delay, state) {
-        if (delay === void 0) delay = 0;
-        if (AsyncScheduler.delegate && AsyncScheduler.delegate !== this) return AsyncScheduler.delegate.schedule(work, delay, state);
-        else return _super.prototype.schedule.call(this, work, delay, state);
-    };
     AsyncScheduler.prototype.flush = function(action) {
         var actions = this.actions;
-        if (this.active) {
+        if (this._active) {
             actions.push(action);
             return;
         }
         var error;
-        this.active = true;
+        this._active = true;
         do {
             if (error = action.execute(action.state, action.delay)) break;
         }while (action = actions.shift());
-        this.active = false;
+        this._active = false;
         if (error) {
             while(action = actions.shift())action.unsubscribe();
             throw error;
@@ -1841,235 +2165,226 @@ var AsyncScheduler = /*@__PURE__*/ function(_super) {
     return AsyncScheduler;
 }((0, _scheduler.Scheduler));
 
-},{"tslib":"j8TBX","../Scheduler":"3oTyf","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"3oTyf":[function(require,module,exports) {
+},{"tslib":"lRdW5","../Scheduler":"90yvc","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"90yvc":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "Scheduler", ()=>Scheduler);
-var Scheduler = /*@__PURE__*/ function() {
-    function Scheduler(SchedulerAction, now) {
+var _dateTimestampProvider = require("./scheduler/dateTimestampProvider");
+var Scheduler = function() {
+    function Scheduler(schedulerActionCtor, now) {
         if (now === void 0) now = Scheduler.now;
-        this.SchedulerAction = SchedulerAction;
+        this.schedulerActionCtor = schedulerActionCtor;
         this.now = now;
     }
     Scheduler.prototype.schedule = function(work, delay, state) {
         if (delay === void 0) delay = 0;
-        return new this.SchedulerAction(this, work).schedule(state, delay);
+        return new this.schedulerActionCtor(this, work).schedule(state, delay);
     };
-    Scheduler.now = function() {
-        return Date.now();
-    };
+    Scheduler.now = (0, _dateTimestampProvider.dateTimestampProvider).now;
     return Scheduler;
 }();
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4PFes":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./scheduler/dateTimestampProvider":"9VL6k","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"9VL6k":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "noop", ()=>noop);
-function noop() {}
+parcelHelpers.export(exports, "dateTimestampProvider", ()=>dateTimestampProvider);
+var dateTimestampProvider = {
+    now: function() {
+        return (dateTimestampProvider.delegate || Date).now();
+    },
+    delegate: undefined
+};
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"16wHx":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_util_isScheduler,_util_isArray,_OuterSubscriber,_util_subscribeToResult,_fromArray PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"klIwv":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "combineLatest", ()=>combineLatest);
-parcelHelpers.export(exports, "CombineLatestOperator", ()=>CombineLatestOperator);
-parcelHelpers.export(exports, "CombineLatestSubscriber", ()=>CombineLatestSubscriber);
-var _tslib = require("tslib");
-var _isScheduler = require("../util/isScheduler");
-var _isArray = require("../util/isArray");
-var _outerSubscriber = require("../OuterSubscriber");
-var _subscribeToResult = require("../util/subscribeToResult");
-var _fromArray = require("./fromArray");
-var NONE = {};
-function combineLatest() {
-    var observables = [];
-    for(var _i = 0; _i < arguments.length; _i++)observables[_i] = arguments[_i];
-    var resultSelector = undefined;
-    var scheduler = undefined;
-    if ((0, _isScheduler.isScheduler)(observables[observables.length - 1])) scheduler = observables.pop();
-    if (typeof observables[observables.length - 1] === "function") resultSelector = observables.pop();
-    if (observables.length === 1 && (0, _isArray.isArray)(observables[0])) observables = observables[0];
-    return (0, _fromArray.fromArray)(observables, scheduler).lift(new CombineLatestOperator(resultSelector));
-}
-var CombineLatestOperator = /*@__PURE__*/ function() {
-    function CombineLatestOperator(resultSelector) {
-        this.resultSelector = resultSelector;
-    }
-    CombineLatestOperator.prototype.call = function(subscriber, source) {
-        return source.subscribe(new CombineLatestSubscriber(subscriber, this.resultSelector));
-    };
-    return CombineLatestOperator;
-}();
-var CombineLatestSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(CombineLatestSubscriber, _super);
-    function CombineLatestSubscriber(destination, resultSelector) {
-        var _this = _super.call(this, destination) || this;
-        _this.resultSelector = resultSelector;
-        _this.active = 0;
-        _this.values = [];
-        _this.observables = [];
-        return _this;
-    }
-    CombineLatestSubscriber.prototype._next = function(observable) {
-        this.values.push(NONE);
-        this.observables.push(observable);
-    };
-    CombineLatestSubscriber.prototype._complete = function() {
-        var observables = this.observables;
-        var len = observables.length;
-        if (len === 0) this.destination.complete();
-        else {
-            this.active = len;
-            this.toRespond = len;
-            for(var i = 0; i < len; i++){
-                var observable = observables[i];
-                this.add((0, _subscribeToResult.subscribeToResult)(this, observable, undefined, i));
-            }
-        }
-    };
-    CombineLatestSubscriber.prototype.notifyComplete = function(unused) {
-        if ((this.active -= 1) === 0) this.destination.complete();
-    };
-    CombineLatestSubscriber.prototype.notifyNext = function(_outerValue, innerValue, outerIndex) {
-        var values = this.values;
-        var oldVal = values[outerIndex];
-        var toRespond = !this.toRespond ? 0 : oldVal === NONE ? --this.toRespond : this.toRespond;
-        values[outerIndex] = innerValue;
-        if (toRespond === 0) {
-            if (this.resultSelector) this._tryResultSelector(values);
-            else this.destination.next(values.slice());
-        }
-    };
-    CombineLatestSubscriber.prototype._tryResultSelector = function(values) {
-        var result;
-        try {
-            result = this.resultSelector.apply(this, values);
-        } catch (err) {
-            this.destination.error(err);
-            return;
-        }
-        this.destination.next(result);
-    };
-    return CombineLatestSubscriber;
-}((0, _outerSubscriber.OuterSubscriber));
-
-},{"tslib":"j8TBX","../util/isScheduler":"lll8k","../util/isArray":"8lyov","../OuterSubscriber":"3gKZa","../util/subscribeToResult":"iyftm","./fromArray":"fuDN5","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"lll8k":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "isScheduler", ()=>isScheduler);
-function isScheduler(value) {
-    return value && typeof value.schedule === "function";
-}
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"3gKZa":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Subscriber PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "OuterSubscriber", ()=>OuterSubscriber);
-var _tslib = require("tslib");
-var _subscriber = require("./Subscriber");
-var OuterSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(OuterSubscriber, _super);
-    function OuterSubscriber() {
-        return _super !== null && _super.apply(this, arguments) || this;
-    }
-    OuterSubscriber.prototype.notifyNext = function(outerValue, innerValue, outerIndex, innerIndex, innerSub) {
-        this.destination.next(innerValue);
-    };
-    OuterSubscriber.prototype.notifyError = function(error, innerSub) {
-        this.destination.error(error);
-    };
-    OuterSubscriber.prototype.notifyComplete = function(innerSub) {
-        this.destination.complete();
-    };
-    return OuterSubscriber;
-}((0, _subscriber.Subscriber));
-
-},{"tslib":"j8TBX","./Subscriber":"kpS17","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"iyftm":[function(require,module,exports) {
-/** PURE_IMPORTS_START _InnerSubscriber,_subscribeTo,_Observable PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "subscribeToResult", ()=>subscribeToResult);
-var _innerSubscriber = require("../InnerSubscriber");
-var _subscribeTo = require("./subscribeTo");
+parcelHelpers.export(exports, "combineLatestInit", ()=>combineLatestInit);
 var _observable = require("../Observable");
-function subscribeToResult(outerSubscriber, result, outerValue, outerIndex, innerSubscriber) {
-    if (innerSubscriber === void 0) innerSubscriber = new (0, _innerSubscriber.InnerSubscriber)(outerSubscriber, outerValue, outerIndex);
-    if (innerSubscriber.closed) return undefined;
-    if (result instanceof (0, _observable.Observable)) return result.subscribe(innerSubscriber);
-    return (0, _subscribeTo.subscribeTo)(result)(innerSubscriber);
+var _argsArgArrayOrObject = require("../util/argsArgArrayOrObject");
+var _from = require("./from");
+var _identity = require("../util/identity");
+var _mapOneOrManyArgs = require("../util/mapOneOrManyArgs");
+var _args = require("../util/args");
+var _createObject = require("../util/createObject");
+var _operatorSubscriber = require("../operators/OperatorSubscriber");
+var _executeSchedule = require("../util/executeSchedule");
+function combineLatest() {
+    var args = [];
+    for(var _i = 0; _i < arguments.length; _i++)args[_i] = arguments[_i];
+    var scheduler = (0, _args.popScheduler)(args);
+    var resultSelector = (0, _args.popResultSelector)(args);
+    var _a = (0, _argsArgArrayOrObject.argsArgArrayOrObject)(args), observables = _a.args, keys = _a.keys;
+    if (observables.length === 0) return (0, _from.from)([], scheduler);
+    var result = new (0, _observable.Observable)(combineLatestInit(observables, scheduler, keys ? function(values) {
+        return (0, _createObject.createObject)(keys, values);
+    } : (0, _identity.identity)));
+    return resultSelector ? result.pipe((0, _mapOneOrManyArgs.mapOneOrManyArgs)(resultSelector)) : result;
+}
+function combineLatestInit(observables, scheduler, valueTransform) {
+    if (valueTransform === void 0) valueTransform = (0, _identity.identity);
+    return function(subscriber) {
+        maybeSchedule(scheduler, function() {
+            var length = observables.length;
+            var values = new Array(length);
+            var active = length;
+            var remainingFirstValues = length;
+            var _loop_1 = function(i) {
+                maybeSchedule(scheduler, function() {
+                    var source = (0, _from.from)(observables[i], scheduler);
+                    var hasFirstValue = false;
+                    source.subscribe((0, _operatorSubscriber.createOperatorSubscriber)(subscriber, function(value) {
+                        values[i] = value;
+                        if (!hasFirstValue) {
+                            hasFirstValue = true;
+                            remainingFirstValues--;
+                        }
+                        if (!remainingFirstValues) subscriber.next(valueTransform(values.slice()));
+                    }, function() {
+                        if (!--active) subscriber.complete();
+                    }));
+                }, subscriber);
+            };
+            for(var i = 0; i < length; i++)_loop_1(i);
+        }, subscriber);
+    };
+}
+function maybeSchedule(scheduler, execute, subscription) {
+    if (scheduler) (0, _executeSchedule.executeSchedule)(subscription, scheduler, execute);
+    else execute();
 }
 
-},{"../InnerSubscriber":"7X3En","./subscribeTo":"3FFM5","../Observable":"jfynZ","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7X3En":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Subscriber PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"../Observable":"4Jvxr","../util/argsArgArrayOrObject":"sN5w7","./from":"dBWag","../util/identity":"8Xfg6","../util/mapOneOrManyArgs":"hlLvg","../util/args":"i1opM","../util/createObject":"1ntWm","../operators/OperatorSubscriber":"96z9b","../util/executeSchedule":"lF0MM","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"sN5w7":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "InnerSubscriber", ()=>InnerSubscriber);
+parcelHelpers.export(exports, "argsArgArrayOrObject", ()=>argsArgArrayOrObject);
+var isArray = Array.isArray;
+var getPrototypeOf = Object.getPrototypeOf, objectProto = Object.prototype, getKeys = Object.keys;
+function argsArgArrayOrObject(args) {
+    if (args.length === 1) {
+        var first_1 = args[0];
+        if (isArray(first_1)) return {
+            args: first_1,
+            keys: null
+        };
+        if (isPOJO(first_1)) {
+            var keys = getKeys(first_1);
+            return {
+                args: keys.map(function(key) {
+                    return first_1[key];
+                }),
+                keys: keys
+            };
+        }
+    }
+    return {
+        args: args,
+        keys: null
+    };
+}
+function isPOJO(obj) {
+    return obj && typeof obj === "object" && getPrototypeOf(obj) === objectProto;
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"dBWag":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "from", ()=>from);
+var _scheduled = require("../scheduled/scheduled");
+var _innerFrom = require("./innerFrom");
+function from(input, scheduler) {
+    return scheduler ? (0, _scheduled.scheduled)(input, scheduler) : (0, _innerFrom.innerFrom)(input);
+}
+
+},{"../scheduled/scheduled":"l8eo2","./innerFrom":"27e4p","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"l8eo2":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "scheduled", ()=>scheduled);
+var _scheduleObservable = require("./scheduleObservable");
+var _schedulePromise = require("./schedulePromise");
+var _scheduleArray = require("./scheduleArray");
+var _scheduleIterable = require("./scheduleIterable");
+var _scheduleAsyncIterable = require("./scheduleAsyncIterable");
+var _isInteropObservable = require("../util/isInteropObservable");
+var _isPromise = require("../util/isPromise");
+var _isArrayLike = require("../util/isArrayLike");
+var _isIterable = require("../util/isIterable");
+var _isAsyncIterable = require("../util/isAsyncIterable");
+var _throwUnobservableError = require("../util/throwUnobservableError");
+var _isReadableStreamLike = require("../util/isReadableStreamLike");
+var _scheduleReadableStreamLike = require("./scheduleReadableStreamLike");
+function scheduled(input, scheduler) {
+    if (input != null) {
+        if ((0, _isInteropObservable.isInteropObservable)(input)) return (0, _scheduleObservable.scheduleObservable)(input, scheduler);
+        if ((0, _isArrayLike.isArrayLike)(input)) return (0, _scheduleArray.scheduleArray)(input, scheduler);
+        if ((0, _isPromise.isPromise)(input)) return (0, _schedulePromise.schedulePromise)(input, scheduler);
+        if ((0, _isAsyncIterable.isAsyncIterable)(input)) return (0, _scheduleAsyncIterable.scheduleAsyncIterable)(input, scheduler);
+        if ((0, _isIterable.isIterable)(input)) return (0, _scheduleIterable.scheduleIterable)(input, scheduler);
+        if ((0, _isReadableStreamLike.isReadableStreamLike)(input)) return (0, _scheduleReadableStreamLike.scheduleReadableStreamLike)(input, scheduler);
+    }
+    throw (0, _throwUnobservableError.createInvalidObservableTypeError)(input);
+}
+
+},{"./scheduleObservable":"g2JIf","./schedulePromise":"aQruY","./scheduleArray":"e4o4N","./scheduleIterable":"1884S","./scheduleAsyncIterable":"bCUem","../util/isInteropObservable":"7Yp6b","../util/isPromise":"aVkee","../util/isArrayLike":"i81jv","../util/isIterable":"cGlpL","../util/isAsyncIterable":"fuDY5","../util/throwUnobservableError":"Il45E","../util/isReadableStreamLike":"bnSKo","./scheduleReadableStreamLike":"6KcBM","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"g2JIf":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "scheduleObservable", ()=>scheduleObservable);
+var _innerFrom = require("../observable/innerFrom");
+var _observeOn = require("../operators/observeOn");
+var _subscribeOn = require("../operators/subscribeOn");
+function scheduleObservable(input, scheduler) {
+    return (0, _innerFrom.innerFrom)(input).pipe((0, _subscribeOn.subscribeOn)(scheduler), (0, _observeOn.observeOn)(scheduler));
+}
+
+},{"../observable/innerFrom":"27e4p","../operators/observeOn":"21OcU","../operators/subscribeOn":"3SFol","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"27e4p":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "innerFrom", ()=>innerFrom);
+parcelHelpers.export(exports, "fromInteropObservable", ()=>fromInteropObservable);
+parcelHelpers.export(exports, "fromArrayLike", ()=>fromArrayLike);
+parcelHelpers.export(exports, "fromPromise", ()=>fromPromise);
+parcelHelpers.export(exports, "fromIterable", ()=>fromIterable);
+parcelHelpers.export(exports, "fromAsyncIterable", ()=>fromAsyncIterable);
+parcelHelpers.export(exports, "fromReadableStreamLike", ()=>fromReadableStreamLike);
 var _tslib = require("tslib");
-var _subscriber = require("./Subscriber");
-var InnerSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(InnerSubscriber, _super);
-    function InnerSubscriber(parent, outerValue, outerIndex) {
-        var _this = _super.call(this) || this;
-        _this.parent = parent;
-        _this.outerValue = outerValue;
-        _this.outerIndex = outerIndex;
-        _this.index = 0;
-        return _this;
+var _isArrayLike = require("../util/isArrayLike");
+var _isPromise = require("../util/isPromise");
+var _observable = require("../Observable");
+var _isInteropObservable = require("../util/isInteropObservable");
+var _isAsyncIterable = require("../util/isAsyncIterable");
+var _throwUnobservableError = require("../util/throwUnobservableError");
+var _isIterable = require("../util/isIterable");
+var _isReadableStreamLike = require("../util/isReadableStreamLike");
+var _isFunction = require("../util/isFunction");
+var _reportUnhandledError = require("../util/reportUnhandledError");
+var _observable1 = require("../symbol/observable");
+function innerFrom(input) {
+    if (input instanceof (0, _observable.Observable)) return input;
+    if (input != null) {
+        if ((0, _isInteropObservable.isInteropObservable)(input)) return fromInteropObservable(input);
+        if ((0, _isArrayLike.isArrayLike)(input)) return fromArrayLike(input);
+        if ((0, _isPromise.isPromise)(input)) return fromPromise(input);
+        if ((0, _isAsyncIterable.isAsyncIterable)(input)) return fromAsyncIterable(input);
+        if ((0, _isIterable.isIterable)(input)) return fromIterable(input);
+        if ((0, _isReadableStreamLike.isReadableStreamLike)(input)) return fromReadableStreamLike(input);
     }
-    InnerSubscriber.prototype._next = function(value) {
-        this.parent.notifyNext(this.outerValue, value, this.outerIndex, this.index++, this);
-    };
-    InnerSubscriber.prototype._error = function(error) {
-        this.parent.notifyError(error, this);
-        this.unsubscribe();
-    };
-    InnerSubscriber.prototype._complete = function() {
-        this.parent.notifyComplete(this);
-        this.unsubscribe();
-    };
-    return InnerSubscriber;
-}((0, _subscriber.Subscriber));
-
-},{"tslib":"j8TBX","./Subscriber":"kpS17","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"3FFM5":[function(require,module,exports) {
-/** PURE_IMPORTS_START _subscribeToArray,_subscribeToPromise,_subscribeToIterable,_subscribeToObservable,_isArrayLike,_isPromise,_isObject,_symbol_iterator,_symbol_observable PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "subscribeTo", ()=>subscribeTo);
-var _subscribeToArray = require("./subscribeToArray");
-var _subscribeToPromise = require("./subscribeToPromise");
-var _subscribeToIterable = require("./subscribeToIterable");
-var _subscribeToObservable = require("./subscribeToObservable");
-var _isArrayLike = require("./isArrayLike");
-var _isPromise = require("./isPromise");
-var _isObject = require("./isObject");
-var _iterator = require("../symbol/iterator");
-var _observable = require("../symbol/observable");
-var subscribeTo = function(result) {
-    if (!!result && typeof result[0, _observable.observable] === "function") return (0, _subscribeToObservable.subscribeToObservable)(result);
-    else if ((0, _isArrayLike.isArrayLike)(result)) return (0, _subscribeToArray.subscribeToArray)(result);
-    else if ((0, _isPromise.isPromise)(result)) return (0, _subscribeToPromise.subscribeToPromise)(result);
-    else if (!!result && typeof result[0, _iterator.iterator] === "function") return (0, _subscribeToIterable.subscribeToIterable)(result);
-    else {
-        var value = (0, _isObject.isObject)(result) ? "an invalid object" : "'" + result + "'";
-        var msg = "You provided " + value + " where a stream was expected." + " You can provide an Observable, Promise, Array, or Iterable.";
-        throw new TypeError(msg);
-    }
-};
-
-},{"./subscribeToArray":"fewY5","./subscribeToPromise":"aTuxc","./subscribeToIterable":"l6eYj","./subscribeToObservable":"kNY76","./isArrayLike":"bOfm6","./isPromise":"1kyC9","./isObject":"4BZjK","../symbol/iterator":"i6XsA","../symbol/observable":"6YJAq","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"fewY5":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "subscribeToArray", ()=>subscribeToArray);
-var subscribeToArray = function(array) {
-    return function(subscriber) {
-        for(var i = 0, len = array.length; i < len && !subscriber.closed; i++)subscriber.next(array[i]);
+    throw (0, _throwUnobservableError.createInvalidObservableTypeError)(input);
+}
+function fromInteropObservable(obj) {
+    return new (0, _observable.Observable)(function(subscriber) {
+        var obs = obj[0, _observable1.observable]();
+        if ((0, _isFunction.isFunction)(obs.subscribe)) return obs.subscribe(subscriber);
+        throw new TypeError("Provided object does not correctly implement Symbol.observable");
+    });
+}
+function fromArrayLike(array) {
+    return new (0, _observable.Observable)(function(subscriber) {
+        for(var i = 0; i < array.length && !subscriber.closed; i++)subscriber.next(array[i]);
         subscriber.complete();
-    };
-};
-
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"aTuxc":[function(require,module,exports) {
-/** PURE_IMPORTS_START _hostReportError PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "subscribeToPromise", ()=>subscribeToPromise);
-var _hostReportError = require("./hostReportError");
-var subscribeToPromise = function(promise) {
-    return function(subscriber) {
+    });
+}
+function fromPromise(promise) {
+    return new (0, _observable.Observable)(function(subscriber) {
         promise.then(function(value) {
             if (!subscriber.closed) {
                 subscriber.next(value);
@@ -2077,641 +2392,1046 @@ var subscribeToPromise = function(promise) {
             }
         }, function(err) {
             return subscriber.error(err);
-        }).then(null, (0, _hostReportError.hostReportError));
-        return subscriber;
-    };
-};
-
-},{"./hostReportError":"jXrF8","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"l6eYj":[function(require,module,exports) {
-/** PURE_IMPORTS_START _symbol_iterator PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "subscribeToIterable", ()=>subscribeToIterable);
-var _iterator = require("../symbol/iterator");
-var subscribeToIterable = function(iterable) {
-    return function(subscriber) {
-        var iterator = iterable[0, _iterator.iterator]();
-        do {
-            var item = void 0;
-            try {
-                item = iterator.next();
-            } catch (err) {
-                subscriber.error(err);
-                return subscriber;
-            }
-            if (item.done) {
-                subscriber.complete();
-                break;
-            }
-            subscriber.next(item.value);
-            if (subscriber.closed) break;
-        }while (true);
-        if (typeof iterator.return === "function") subscriber.add(function() {
-            if (iterator.return) iterator.return();
-        });
-        return subscriber;
-    };
-};
-
-},{"../symbol/iterator":"i6XsA","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"i6XsA":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "getSymbolIterator", ()=>getSymbolIterator);
-parcelHelpers.export(exports, "iterator", ()=>iterator);
-parcelHelpers.export(exports, "$$iterator", ()=>$$iterator);
-function getSymbolIterator() {
-    if (typeof Symbol !== "function" || !Symbol.iterator) return "@@iterator";
-    return Symbol.iterator;
+        }).then(null, (0, _reportUnhandledError.reportUnhandledError));
+    });
 }
-var iterator = /*@__PURE__*/ getSymbolIterator();
-var $$iterator = iterator;
+function fromIterable(iterable) {
+    return new (0, _observable.Observable)(function(subscriber) {
+        var e_1, _a;
+        try {
+            for(var iterable_1 = (0, _tslib.__values)(iterable), iterable_1_1 = iterable_1.next(); !iterable_1_1.done; iterable_1_1 = iterable_1.next()){
+                var value = iterable_1_1.value;
+                subscriber.next(value);
+                if (subscriber.closed) return;
+            }
+        } catch (e_1_1) {
+            e_1 = {
+                error: e_1_1
+            };
+        } finally{
+            try {
+                if (iterable_1_1 && !iterable_1_1.done && (_a = iterable_1.return)) _a.call(iterable_1);
+            } finally{
+                if (e_1) throw e_1.error;
+            }
+        }
+        subscriber.complete();
+    });
+}
+function fromAsyncIterable(asyncIterable) {
+    return new (0, _observable.Observable)(function(subscriber) {
+        process(asyncIterable, subscriber).catch(function(err) {
+            return subscriber.error(err);
+        });
+    });
+}
+function fromReadableStreamLike(readableStream) {
+    return fromAsyncIterable((0, _isReadableStreamLike.readableStreamLikeToAsyncGenerator)(readableStream));
+}
+function process(asyncIterable, subscriber) {
+    var asyncIterable_1, asyncIterable_1_1;
+    var e_2, _a;
+    return (0, _tslib.__awaiter)(this, void 0, void 0, function() {
+        var value, e_2_1;
+        return (0, _tslib.__generator)(this, function(_b) {
+            switch(_b.label){
+                case 0:
+                    _b.trys.push([
+                        0,
+                        5,
+                        6,
+                        11
+                    ]);
+                    asyncIterable_1 = (0, _tslib.__asyncValues)(asyncIterable);
+                    _b.label = 1;
+                case 1:
+                    return [
+                        4,
+                        asyncIterable_1.next()
+                    ];
+                case 2:
+                    if (!(asyncIterable_1_1 = _b.sent(), !asyncIterable_1_1.done)) return [
+                        3,
+                        4
+                    ];
+                    value = asyncIterable_1_1.value;
+                    subscriber.next(value);
+                    if (subscriber.closed) return [
+                        2
+                    ];
+                    _b.label = 3;
+                case 3:
+                    return [
+                        3,
+                        1
+                    ];
+                case 4:
+                    return [
+                        3,
+                        11
+                    ];
+                case 5:
+                    e_2_1 = _b.sent();
+                    e_2 = {
+                        error: e_2_1
+                    };
+                    return [
+                        3,
+                        11
+                    ];
+                case 6:
+                    _b.trys.push([
+                        6,
+                        ,
+                        9,
+                        10
+                    ]);
+                    if (!(asyncIterable_1_1 && !asyncIterable_1_1.done && (_a = asyncIterable_1.return))) return [
+                        3,
+                        8
+                    ];
+                    return [
+                        4,
+                        _a.call(asyncIterable_1)
+                    ];
+                case 7:
+                    _b.sent();
+                    _b.label = 8;
+                case 8:
+                    return [
+                        3,
+                        10
+                    ];
+                case 9:
+                    if (e_2) throw e_2.error;
+                    return [
+                        7
+                    ];
+                case 10:
+                    return [
+                        7
+                    ];
+                case 11:
+                    subscriber.complete();
+                    return [
+                        2
+                    ];
+            }
+        });
+    });
+}
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kNY76":[function(require,module,exports) {
-/** PURE_IMPORTS_START _symbol_observable PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "subscribeToObservable", ()=>subscribeToObservable);
-var _observable = require("../symbol/observable");
-var subscribeToObservable = function(obj) {
-    return function(subscriber) {
-        var obs = obj[0, _observable.observable]();
-        if (typeof obs.subscribe !== "function") throw new TypeError("Provided object does not correctly implement Symbol.observable");
-        else return obs.subscribe(subscriber);
-    };
-};
-
-},{"../symbol/observable":"6YJAq","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"bOfm6":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"tslib":"lRdW5","../util/isArrayLike":"i81jv","../util/isPromise":"aVkee","../Observable":"4Jvxr","../util/isInteropObservable":"7Yp6b","../util/isAsyncIterable":"fuDY5","../util/throwUnobservableError":"Il45E","../util/isIterable":"cGlpL","../util/isReadableStreamLike":"bnSKo","../util/isFunction":"dEyyK","../util/reportUnhandledError":"aVM3K","../symbol/observable":"byHtV","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"i81jv":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "isArrayLike", ()=>isArrayLike);
 var isArrayLike = function(x) {
     return x && typeof x.length === "number" && typeof x !== "function";
 };
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1kyC9":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"aVkee":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "isPromise", ()=>isPromise);
+var _isFunction = require("./isFunction");
 function isPromise(value) {
-    return !!value && typeof value.subscribe !== "function" && typeof value.then === "function";
+    return (0, _isFunction.isFunction)(value === null || value === void 0 ? void 0 : value.then);
 }
 
-},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"fuDN5":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Observable,_util_subscribeToArray,_scheduled_scheduleArray PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./isFunction":"dEyyK","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7Yp6b":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "fromArray", ()=>fromArray);
-var _observable = require("../Observable");
-var _subscribeToArray = require("../util/subscribeToArray");
-var _scheduleArray = require("../scheduled/scheduleArray");
-function fromArray(input, scheduler) {
-    if (!scheduler) return new (0, _observable.Observable)((0, _subscribeToArray.subscribeToArray)(input));
-    else return (0, _scheduleArray.scheduleArray)(input, scheduler);
+parcelHelpers.export(exports, "isInteropObservable", ()=>isInteropObservable);
+var _observable = require("../symbol/observable");
+var _isFunction = require("./isFunction");
+function isInteropObservable(input) {
+    return (0, _isFunction.isFunction)(input[0, _observable.observable]);
 }
 
-},{"../Observable":"jfynZ","../util/subscribeToArray":"fewY5","../scheduled/scheduleArray":"3tiUI","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"3tiUI":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Observable,_Subscription PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"../symbol/observable":"byHtV","./isFunction":"dEyyK","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"fuDY5":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "isAsyncIterable", ()=>isAsyncIterable);
+var _isFunction = require("./isFunction");
+function isAsyncIterable(obj) {
+    return Symbol.asyncIterator && (0, _isFunction.isFunction)(obj === null || obj === void 0 ? void 0 : obj[Symbol.asyncIterator]);
+}
+
+},{"./isFunction":"dEyyK","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"Il45E":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "createInvalidObservableTypeError", ()=>createInvalidObservableTypeError);
+function createInvalidObservableTypeError(input) {
+    return new TypeError("You provided " + (input !== null && typeof input === "object" ? "an invalid object" : "'" + input + "'") + " where a stream was expected. You can provide an Observable, Promise, ReadableStream, Array, AsyncIterable, or Iterable.");
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"cGlpL":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "isIterable", ()=>isIterable);
+var _iterator = require("../symbol/iterator");
+var _isFunction = require("./isFunction");
+function isIterable(input) {
+    return (0, _isFunction.isFunction)(input === null || input === void 0 ? void 0 : input[0, _iterator.iterator]);
+}
+
+},{"../symbol/iterator":"l85ff","./isFunction":"dEyyK","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"l85ff":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "getSymbolIterator", ()=>getSymbolIterator);
+parcelHelpers.export(exports, "iterator", ()=>iterator);
+function getSymbolIterator() {
+    if (typeof Symbol !== "function" || !Symbol.iterator) return "@@iterator";
+    return Symbol.iterator;
+}
+var iterator = getSymbolIterator();
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"bnSKo":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "readableStreamLikeToAsyncGenerator", ()=>readableStreamLikeToAsyncGenerator);
+parcelHelpers.export(exports, "isReadableStreamLike", ()=>isReadableStreamLike);
+var _tslib = require("tslib");
+var _isFunction = require("./isFunction");
+function readableStreamLikeToAsyncGenerator(readableStream) {
+    return (0, _tslib.__asyncGenerator)(this, arguments, function readableStreamLikeToAsyncGenerator_1() {
+        var reader, _a, value, done;
+        return (0, _tslib.__generator)(this, function(_b) {
+            switch(_b.label){
+                case 0:
+                    reader = readableStream.getReader();
+                    _b.label = 1;
+                case 1:
+                    _b.trys.push([
+                        1,
+                        ,
+                        9,
+                        10
+                    ]);
+                    _b.label = 2;
+                case 2:
+                    return [
+                        4,
+                        (0, _tslib.__await)(reader.read())
+                    ];
+                case 3:
+                    _a = _b.sent(), value = _a.value, done = _a.done;
+                    if (!done) return [
+                        3,
+                        5
+                    ];
+                    return [
+                        4,
+                        (0, _tslib.__await)(void 0)
+                    ];
+                case 4:
+                    return [
+                        2,
+                        _b.sent()
+                    ];
+                case 5:
+                    return [
+                        4,
+                        (0, _tslib.__await)(value)
+                    ];
+                case 6:
+                    return [
+                        4,
+                        _b.sent()
+                    ];
+                case 7:
+                    _b.sent();
+                    return [
+                        3,
+                        2
+                    ];
+                case 8:
+                    return [
+                        3,
+                        10
+                    ];
+                case 9:
+                    reader.releaseLock();
+                    return [
+                        7
+                    ];
+                case 10:
+                    return [
+                        2
+                    ];
+            }
+        });
+    });
+}
+function isReadableStreamLike(obj) {
+    return (0, _isFunction.isFunction)(obj === null || obj === void 0 ? void 0 : obj.getReader);
+}
+
+},{"tslib":"lRdW5","./isFunction":"dEyyK","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"21OcU":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "observeOn", ()=>observeOn);
+var _executeSchedule = require("../util/executeSchedule");
+var _lift = require("../util/lift");
+var _operatorSubscriber = require("./OperatorSubscriber");
+function observeOn(scheduler, delay) {
+    if (delay === void 0) delay = 0;
+    return (0, _lift.operate)(function(source, subscriber) {
+        source.subscribe((0, _operatorSubscriber.createOperatorSubscriber)(subscriber, function(value) {
+            return (0, _executeSchedule.executeSchedule)(subscriber, scheduler, function() {
+                return subscriber.next(value);
+            }, delay);
+        }, function() {
+            return (0, _executeSchedule.executeSchedule)(subscriber, scheduler, function() {
+                return subscriber.complete();
+            }, delay);
+        }, function(err) {
+            return (0, _executeSchedule.executeSchedule)(subscriber, scheduler, function() {
+                return subscriber.error(err);
+            }, delay);
+        }));
+    });
+}
+
+},{"../util/executeSchedule":"lF0MM","../util/lift":"7CiSs","./OperatorSubscriber":"96z9b","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"lF0MM":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "executeSchedule", ()=>executeSchedule);
+function executeSchedule(parentSubscription, scheduler, work, delay, repeat) {
+    if (delay === void 0) delay = 0;
+    if (repeat === void 0) repeat = false;
+    var scheduleSubscription = scheduler.schedule(function() {
+        work();
+        if (repeat) parentSubscription.add(this.schedule(null, delay));
+        else this.unsubscribe();
+    }, delay);
+    parentSubscription.add(scheduleSubscription);
+    if (!repeat) return scheduleSubscription;
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7CiSs":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "hasLift", ()=>hasLift);
+parcelHelpers.export(exports, "operate", ()=>operate);
+var _isFunction = require("./isFunction");
+function hasLift(source) {
+    return (0, _isFunction.isFunction)(source === null || source === void 0 ? void 0 : source.lift);
+}
+function operate(init) {
+    return function(source) {
+        if (hasLift(source)) return source.lift(function(liftedSource) {
+            try {
+                return init(liftedSource, this);
+            } catch (err) {
+                this.error(err);
+            }
+        });
+        throw new TypeError("Unable to lift unknown Observable type");
+    };
+}
+
+},{"./isFunction":"dEyyK","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"96z9b":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "createOperatorSubscriber", ()=>createOperatorSubscriber);
+parcelHelpers.export(exports, "OperatorSubscriber", ()=>OperatorSubscriber);
+var _tslib = require("tslib");
+var _subscriber = require("../Subscriber");
+function createOperatorSubscriber(destination, onNext, onComplete, onError, onFinalize) {
+    return new OperatorSubscriber(destination, onNext, onComplete, onError, onFinalize);
+}
+var OperatorSubscriber = function(_super) {
+    (0, _tslib.__extends)(OperatorSubscriber, _super);
+    function OperatorSubscriber(destination, onNext, onComplete, onError, onFinalize, shouldUnsubscribe) {
+        var _this = _super.call(this, destination) || this;
+        _this.onFinalize = onFinalize;
+        _this.shouldUnsubscribe = shouldUnsubscribe;
+        _this._next = onNext ? function(value) {
+            try {
+                onNext(value);
+            } catch (err) {
+                destination.error(err);
+            }
+        } : _super.prototype._next;
+        _this._error = onError ? function(err) {
+            try {
+                onError(err);
+            } catch (err) {
+                destination.error(err);
+            } finally{
+                this.unsubscribe();
+            }
+        } : _super.prototype._error;
+        _this._complete = onComplete ? function() {
+            try {
+                onComplete();
+            } catch (err) {
+                destination.error(err);
+            } finally{
+                this.unsubscribe();
+            }
+        } : _super.prototype._complete;
+        return _this;
+    }
+    OperatorSubscriber.prototype.unsubscribe = function() {
+        var _a;
+        if (!this.shouldUnsubscribe || this.shouldUnsubscribe()) {
+            var closed_1 = this.closed;
+            _super.prototype.unsubscribe.call(this);
+            !closed_1 && ((_a = this.onFinalize) === null || _a === void 0 || _a.call(this));
+        }
+    };
+    return OperatorSubscriber;
+}((0, _subscriber.Subscriber));
+
+},{"tslib":"lRdW5","../Subscriber":"1VFFQ","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"3SFol":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "subscribeOn", ()=>subscribeOn);
+var _lift = require("../util/lift");
+function subscribeOn(scheduler, delay) {
+    if (delay === void 0) delay = 0;
+    return (0, _lift.operate)(function(source, subscriber) {
+        subscriber.add(scheduler.schedule(function() {
+            return source.subscribe(subscriber);
+        }, delay));
+    });
+}
+
+},{"../util/lift":"7CiSs","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"aQruY":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "schedulePromise", ()=>schedulePromise);
+var _innerFrom = require("../observable/innerFrom");
+var _observeOn = require("../operators/observeOn");
+var _subscribeOn = require("../operators/subscribeOn");
+function schedulePromise(input, scheduler) {
+    return (0, _innerFrom.innerFrom)(input).pipe((0, _subscribeOn.subscribeOn)(scheduler), (0, _observeOn.observeOn)(scheduler));
+}
+
+},{"../observable/innerFrom":"27e4p","../operators/observeOn":"21OcU","../operators/subscribeOn":"3SFol","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"e4o4N":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "scheduleArray", ()=>scheduleArray);
 var _observable = require("../Observable");
-var _subscription = require("../Subscription");
 function scheduleArray(input, scheduler) {
     return new (0, _observable.Observable)(function(subscriber) {
-        var sub = new (0, _subscription.Subscription)();
         var i = 0;
-        sub.add(scheduler.schedule(function() {
-            if (i === input.length) {
-                subscriber.complete();
-                return;
+        return scheduler.schedule(function() {
+            if (i === input.length) subscriber.complete();
+            else {
+                subscriber.next(input[i++]);
+                if (!subscriber.closed) this.schedule();
             }
-            subscriber.next(input[i++]);
-            if (!subscriber.closed) sub.add(this.schedule());
-        }));
-        return sub;
+        });
     });
 }
 
-},{"../Observable":"jfynZ","../Subscription":"6K2jD","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8eI7u":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Observable,_util_subscribeTo,_scheduled_scheduled PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "from", ()=>from);
-var _observable = require("../Observable");
-var _subscribeTo = require("../util/subscribeTo");
-var _scheduled = require("../scheduled/scheduled");
-function from(input, scheduler) {
-    if (!scheduler) {
-        if (input instanceof (0, _observable.Observable)) return input;
-        return new (0, _observable.Observable)((0, _subscribeTo.subscribeTo)(input));
-    } else return (0, _scheduled.scheduled)(input, scheduler);
-}
-
-},{"../Observable":"jfynZ","../util/subscribeTo":"3FFM5","../scheduled/scheduled":"95k2n","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"95k2n":[function(require,module,exports) {
-/** PURE_IMPORTS_START _scheduleObservable,_schedulePromise,_scheduleArray,_scheduleIterable,_util_isInteropObservable,_util_isPromise,_util_isArrayLike,_util_isIterable PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "scheduled", ()=>scheduled);
-var _scheduleObservable = require("./scheduleObservable");
-var _schedulePromise = require("./schedulePromise");
-var _scheduleArray = require("./scheduleArray");
-var _scheduleIterable = require("./scheduleIterable");
-var _isInteropObservable = require("../util/isInteropObservable");
-var _isPromise = require("../util/isPromise");
-var _isArrayLike = require("../util/isArrayLike");
-var _isIterable = require("../util/isIterable");
-function scheduled(input, scheduler) {
-    if (input != null) {
-        if ((0, _isInteropObservable.isInteropObservable)(input)) return (0, _scheduleObservable.scheduleObservable)(input, scheduler);
-        else if ((0, _isPromise.isPromise)(input)) return (0, _schedulePromise.schedulePromise)(input, scheduler);
-        else if ((0, _isArrayLike.isArrayLike)(input)) return (0, _scheduleArray.scheduleArray)(input, scheduler);
-        else if ((0, _isIterable.isIterable)(input) || typeof input === "string") return (0, _scheduleIterable.scheduleIterable)(input, scheduler);
-    }
-    throw new TypeError((input !== null && typeof input || input) + " is not observable");
-}
-
-},{"./scheduleObservable":"1y5BB","./schedulePromise":"d3CnE","./scheduleArray":"3tiUI","./scheduleIterable":"b6x4q","../util/isInteropObservable":"bnTa2","../util/isPromise":"1kyC9","../util/isArrayLike":"bOfm6","../util/isIterable":"digKz","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1y5BB":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Observable,_Subscription,_symbol_observable PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "scheduleObservable", ()=>scheduleObservable);
-var _observable = require("../Observable");
-var _subscription = require("../Subscription");
-var _observable1 = require("../symbol/observable");
-function scheduleObservable(input, scheduler) {
-    return new (0, _observable.Observable)(function(subscriber) {
-        var sub = new (0, _subscription.Subscription)();
-        sub.add(scheduler.schedule(function() {
-            var observable = input[0, _observable1.observable]();
-            sub.add(observable.subscribe({
-                next: function(value) {
-                    sub.add(scheduler.schedule(function() {
-                        return subscriber.next(value);
-                    }));
-                },
-                error: function(err) {
-                    sub.add(scheduler.schedule(function() {
-                        return subscriber.error(err);
-                    }));
-                },
-                complete: function() {
-                    sub.add(scheduler.schedule(function() {
-                        return subscriber.complete();
-                    }));
-                }
-            }));
-        }));
-        return sub;
-    });
-}
-
-},{"../Observable":"jfynZ","../Subscription":"6K2jD","../symbol/observable":"6YJAq","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"d3CnE":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Observable,_Subscription PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "schedulePromise", ()=>schedulePromise);
-var _observable = require("../Observable");
-var _subscription = require("../Subscription");
-function schedulePromise(input, scheduler) {
-    return new (0, _observable.Observable)(function(subscriber) {
-        var sub = new (0, _subscription.Subscription)();
-        sub.add(scheduler.schedule(function() {
-            return input.then(function(value) {
-                sub.add(scheduler.schedule(function() {
-                    subscriber.next(value);
-                    sub.add(scheduler.schedule(function() {
-                        return subscriber.complete();
-                    }));
-                }));
-            }, function(err) {
-                sub.add(scheduler.schedule(function() {
-                    return subscriber.error(err);
-                }));
-            });
-        }));
-        return sub;
-    });
-}
-
-},{"../Observable":"jfynZ","../Subscription":"6K2jD","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"b6x4q":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Observable,_Subscription,_symbol_iterator PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"../Observable":"4Jvxr","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1884S":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "scheduleIterable", ()=>scheduleIterable);
 var _observable = require("../Observable");
-var _subscription = require("../Subscription");
 var _iterator = require("../symbol/iterator");
+var _isFunction = require("../util/isFunction");
+var _executeSchedule = require("../util/executeSchedule");
 function scheduleIterable(input, scheduler) {
-    if (!input) throw new Error("Iterable cannot be null");
     return new (0, _observable.Observable)(function(subscriber) {
-        var sub = new (0, _subscription.Subscription)();
         var iterator;
-        sub.add(function() {
-            if (iterator && typeof iterator.return === "function") iterator.return();
-        });
-        sub.add(scheduler.schedule(function() {
+        (0, _executeSchedule.executeSchedule)(subscriber, scheduler, function() {
             iterator = input[0, _iterator.iterator]();
-            sub.add(scheduler.schedule(function() {
-                if (subscriber.closed) return;
+            (0, _executeSchedule.executeSchedule)(subscriber, scheduler, function() {
+                var _a;
                 var value;
                 var done;
                 try {
-                    var result = iterator.next();
-                    value = result.value;
-                    done = result.done;
+                    _a = iterator.next(), value = _a.value, done = _a.done;
                 } catch (err) {
                     subscriber.error(err);
                     return;
                 }
                 if (done) subscriber.complete();
-                else {
-                    subscriber.next(value);
-                    this.schedule();
-                }
-            }));
-        }));
-        return sub;
+                else subscriber.next(value);
+            }, 0, true);
+        });
+        return function() {
+            return (0, _isFunction.isFunction)(iterator === null || iterator === void 0 ? void 0 : iterator.return) && iterator.return();
+        };
     });
 }
 
-},{"../Observable":"jfynZ","../Subscription":"6K2jD","../symbol/iterator":"i6XsA","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"bnTa2":[function(require,module,exports) {
-/** PURE_IMPORTS_START _symbol_observable PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"../Observable":"4Jvxr","../symbol/iterator":"l85ff","../util/isFunction":"dEyyK","../util/executeSchedule":"lF0MM","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"bCUem":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "isInteropObservable", ()=>isInteropObservable);
-var _observable = require("../symbol/observable");
-function isInteropObservable(input) {
-    return input && typeof input[0, _observable.observable] === "function";
-}
-
-},{"../symbol/observable":"6YJAq","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"digKz":[function(require,module,exports) {
-/** PURE_IMPORTS_START _symbol_iterator PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "isIterable", ()=>isIterable);
-var _iterator = require("../symbol/iterator");
-function isIterable(input) {
-    return input && typeof input[0, _iterator.iterator] === "function";
-}
-
-},{"../symbol/iterator":"i6XsA","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eiXJM":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Observable,_util_isArray,_util_isFunction,_operators_map PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "fromEvent", ()=>fromEvent);
+parcelHelpers.export(exports, "scheduleAsyncIterable", ()=>scheduleAsyncIterable);
 var _observable = require("../Observable");
-var _isArray = require("../util/isArray");
-var _isFunction = require("../util/isFunction");
-var _map = require("../operators/map");
-var toString = /*@__PURE__*/ function() {
-    return Object.prototype.toString;
-}();
-function fromEvent(target, eventName, options, resultSelector) {
-    if ((0, _isFunction.isFunction)(options)) {
-        resultSelector = options;
-        options = undefined;
-    }
-    if (resultSelector) return fromEvent(target, eventName, options).pipe((0, _map.map)(function(args) {
-        return (0, _isArray.isArray)(args) ? resultSelector.apply(void 0, args) : resultSelector(args);
-    }));
+var _executeSchedule = require("../util/executeSchedule");
+function scheduleAsyncIterable(input, scheduler) {
+    if (!input) throw new Error("Iterable cannot be null");
     return new (0, _observable.Observable)(function(subscriber) {
-        function handler(e) {
-            if (arguments.length > 1) subscriber.next(Array.prototype.slice.call(arguments));
-            else subscriber.next(e);
-        }
-        setupSubscription(target, eventName, handler, subscriber, options);
+        (0, _executeSchedule.executeSchedule)(subscriber, scheduler, function() {
+            var iterator = input[Symbol.asyncIterator]();
+            (0, _executeSchedule.executeSchedule)(subscriber, scheduler, function() {
+                iterator.next().then(function(result) {
+                    if (result.done) subscriber.complete();
+                    else subscriber.next(result.value);
+                });
+            }, 0, true);
+        });
     });
 }
-function setupSubscription(sourceObj, eventName, handler, subscriber, options) {
-    var unsubscribe;
-    if (isEventTarget(sourceObj)) {
-        var source_1 = sourceObj;
-        sourceObj.addEventListener(eventName, handler, options);
-        unsubscribe = function() {
-            return source_1.removeEventListener(eventName, handler, options);
-        };
-    } else if (isJQueryStyleEventEmitter(sourceObj)) {
-        var source_2 = sourceObj;
-        sourceObj.on(eventName, handler);
-        unsubscribe = function() {
-            return source_2.off(eventName, handler);
-        };
-    } else if (isNodeStyleEventEmitter(sourceObj)) {
-        var source_3 = sourceObj;
-        sourceObj.addListener(eventName, handler);
-        unsubscribe = function() {
-            return source_3.removeListener(eventName, handler);
-        };
-    } else if (sourceObj && sourceObj.length) for(var i = 0, len = sourceObj.length; i < len; i++)setupSubscription(sourceObj[i], eventName, handler, subscriber, options);
-    else throw new TypeError("Invalid event target");
-    subscriber.add(unsubscribe);
-}
-function isNodeStyleEventEmitter(sourceObj) {
-    return sourceObj && typeof sourceObj.addListener === "function" && typeof sourceObj.removeListener === "function";
-}
-function isJQueryStyleEventEmitter(sourceObj) {
-    return sourceObj && typeof sourceObj.on === "function" && typeof sourceObj.off === "function";
-}
-function isEventTarget(sourceObj) {
-    return sourceObj && typeof sourceObj.addEventListener === "function" && typeof sourceObj.removeEventListener === "function";
+
+},{"../Observable":"4Jvxr","../util/executeSchedule":"lF0MM","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6KcBM":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "scheduleReadableStreamLike", ()=>scheduleReadableStreamLike);
+var _scheduleAsyncIterable = require("./scheduleAsyncIterable");
+var _isReadableStreamLike = require("../util/isReadableStreamLike");
+function scheduleReadableStreamLike(input, scheduler) {
+    return (0, _scheduleAsyncIterable.scheduleAsyncIterable)((0, _isReadableStreamLike.readableStreamLikeToAsyncGenerator)(input), scheduler);
 }
 
-},{"../Observable":"jfynZ","../util/isArray":"8lyov","../util/isFunction":"gyncl","../operators/map":"l45v5","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"l45v5":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Subscriber PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./scheduleAsyncIterable":"bCUem","../util/isReadableStreamLike":"bnSKo","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"hlLvg":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "mapOneOrManyArgs", ()=>mapOneOrManyArgs);
+var _tslib = require("tslib");
+var _map = require("../operators/map");
+var isArray = Array.isArray;
+function callOrApply(fn, args) {
+    return isArray(args) ? fn.apply(void 0, (0, _tslib.__spreadArray)([], (0, _tslib.__read)(args))) : fn(args);
+}
+function mapOneOrManyArgs(fn) {
+    return (0, _map.map)(function(args) {
+        return callOrApply(fn, args);
+    });
+}
+
+},{"tslib":"lRdW5","../operators/map":"25iUP","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"25iUP":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "map", ()=>map);
-parcelHelpers.export(exports, "MapOperator", ()=>MapOperator);
-var _tslib = require("tslib");
-var _subscriber = require("../Subscriber");
+var _lift = require("../util/lift");
+var _operatorSubscriber = require("./OperatorSubscriber");
 function map(project, thisArg) {
-    return function mapOperation(source) {
-        if (typeof project !== "function") throw new TypeError("argument is not a function. Are you looking for `mapTo()`?");
-        return source.lift(new MapOperator(project, thisArg));
-    };
-}
-var MapOperator = /*@__PURE__*/ function() {
-    function MapOperator(project, thisArg) {
-        this.project = project;
-        this.thisArg = thisArg;
-    }
-    MapOperator.prototype.call = function(subscriber, source) {
-        return source.subscribe(new MapSubscriber(subscriber, this.project, this.thisArg));
-    };
-    return MapOperator;
-}();
-var MapSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(MapSubscriber, _super);
-    function MapSubscriber(destination, project, thisArg) {
-        var _this = _super.call(this, destination) || this;
-        _this.project = project;
-        _this.count = 0;
-        _this.thisArg = thisArg || _this;
-        return _this;
-    }
-    MapSubscriber.prototype._next = function(value) {
-        var result;
-        try {
-            result = this.project.call(this.thisArg, value, this.count++);
-        } catch (err) {
-            this.destination.error(err);
-            return;
-        }
-        this.destination.next(result);
-    };
-    return MapSubscriber;
-}((0, _subscriber.Subscriber));
-
-},{"tslib":"j8TBX","../Subscriber":"kpS17","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"9DiSm":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Observable,_scheduler_async,_util_isNumeric PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "interval", ()=>interval);
-var _observable = require("../Observable");
-var _async = require("../scheduler/async");
-var _isNumeric = require("../util/isNumeric");
-function interval(period, scheduler) {
-    if (period === void 0) period = 0;
-    if (scheduler === void 0) scheduler = (0, _async.async);
-    if (!(0, _isNumeric.isNumeric)(period) || period < 0) period = 0;
-    if (!scheduler || typeof scheduler.schedule !== "function") scheduler = (0, _async.async);
-    return new (0, _observable.Observable)(function(subscriber) {
-        subscriber.add(scheduler.schedule(dispatch, period, {
-            subscriber: subscriber,
-            counter: 0,
-            period: period
+    return (0, _lift.operate)(function(source, subscriber) {
+        var index = 0;
+        source.subscribe((0, _operatorSubscriber.createOperatorSubscriber)(subscriber, function(value) {
+            subscriber.next(project.call(thisArg, value, index++));
         }));
-        return subscriber;
     });
 }
-function dispatch(state) {
-    var subscriber = state.subscriber, counter = state.counter, period = state.period;
-    subscriber.next(counter);
-    this.schedule({
-        subscriber: subscriber,
-        counter: counter + 1,
-        period: period
-    }, period);
-}
 
-},{"../Observable":"jfynZ","../scheduler/async":"fLneT","../util/isNumeric":"g8DqL","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"g8DqL":[function(require,module,exports) {
-/** PURE_IMPORTS_START _isArray PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"../util/lift":"7CiSs","./OperatorSubscriber":"96z9b","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"i1opM":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "isNumeric", ()=>isNumeric);
-var _isArray = require("./isArray");
-function isNumeric(val) {
-    return !(0, _isArray.isArray)(val) && val - parseFloat(val) + 1 >= 0;
+parcelHelpers.export(exports, "popResultSelector", ()=>popResultSelector);
+parcelHelpers.export(exports, "popScheduler", ()=>popScheduler);
+parcelHelpers.export(exports, "popNumber", ()=>popNumber);
+var _isFunction = require("./isFunction");
+var _isScheduler = require("./isScheduler");
+function last(arr) {
+    return arr[arr.length - 1];
+}
+function popResultSelector(args) {
+    return (0, _isFunction.isFunction)(last(args)) ? args.pop() : undefined;
+}
+function popScheduler(args) {
+    return (0, _isScheduler.isScheduler)(last(args)) ? args.pop() : undefined;
+}
+function popNumber(args, defaultValue) {
+    return typeof last(args) === "number" ? args.pop() : defaultValue;
 }
 
-},{"./isArray":"8lyov","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"hZiON":[function(require,module,exports) {
-/** PURE_IMPORTS_START _Observable,_util_isScheduler,_operators_mergeAll,_fromArray PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./isFunction":"dEyyK","./isScheduler":"67Brk","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"67Brk":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "merge", ()=>merge);
-var _observable = require("../Observable");
-var _isScheduler = require("../util/isScheduler");
-var _mergeAll = require("../operators/mergeAll");
-var _fromArray = require("./fromArray");
-function merge() {
-    var observables = [];
-    for(var _i = 0; _i < arguments.length; _i++)observables[_i] = arguments[_i];
-    var concurrent = Number.POSITIVE_INFINITY;
-    var scheduler = null;
-    var last = observables[observables.length - 1];
-    if ((0, _isScheduler.isScheduler)(last)) {
-        scheduler = observables.pop();
-        if (observables.length > 1 && typeof observables[observables.length - 1] === "number") concurrent = observables.pop();
-    } else if (typeof last === "number") concurrent = observables.pop();
-    if (scheduler === null && observables.length === 1 && observables[0] instanceof (0, _observable.Observable)) return observables[0];
-    return (0, _mergeAll.mergeAll)(concurrent)((0, _fromArray.fromArray)(observables, scheduler));
+parcelHelpers.export(exports, "isScheduler", ()=>isScheduler);
+var _isFunction = require("./isFunction");
+function isScheduler(value) {
+    return value && (0, _isFunction.isFunction)(value.schedule);
 }
 
-},{"../Observable":"jfynZ","../util/isScheduler":"lll8k","../operators/mergeAll":"4gl6z","./fromArray":"fuDN5","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4gl6z":[function(require,module,exports) {
-/** PURE_IMPORTS_START _mergeMap,_util_identity PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./isFunction":"dEyyK","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1ntWm":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "createObject", ()=>createObject);
+function createObject(keys, values) {
+    return keys.reduce(function(result, key, i) {
+        return result[key] = values[i], result;
+    }, {});
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"5g0IT":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "concat", ()=>concat);
+var _concatAll = require("../operators/concatAll");
+var _args = require("../util/args");
+var _from = require("./from");
+function concat() {
+    var args = [];
+    for(var _i = 0; _i < arguments.length; _i++)args[_i] = arguments[_i];
+    return (0, _concatAll.concatAll)()((0, _from.from)(args, (0, _args.popScheduler)(args)));
+}
+
+},{"../operators/concatAll":"77QLf","../util/args":"i1opM","./from":"dBWag","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"77QLf":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "concatAll", ()=>concatAll);
+var _mergeAll = require("./mergeAll");
+function concatAll() {
+    return (0, _mergeAll.mergeAll)(1);
+}
+
+},{"./mergeAll":"iAqyw","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"iAqyw":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "mergeAll", ()=>mergeAll);
 var _mergeMap = require("./mergeMap");
 var _identity = require("../util/identity");
 function mergeAll(concurrent) {
-    if (concurrent === void 0) concurrent = Number.POSITIVE_INFINITY;
+    if (concurrent === void 0) concurrent = Infinity;
     return (0, _mergeMap.mergeMap)((0, _identity.identity), concurrent);
 }
 
-},{"./mergeMap":"4PgYD","../util/identity":"gxakv","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"4PgYD":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_map,_observable_from,_innerSubscribe PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./mergeMap":"1Kzmb","../util/identity":"8Xfg6","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"1Kzmb":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "mergeMap", ()=>mergeMap);
-parcelHelpers.export(exports, "MergeMapOperator", ()=>MergeMapOperator);
-parcelHelpers.export(exports, "MergeMapSubscriber", ()=>MergeMapSubscriber);
-parcelHelpers.export(exports, "flatMap", ()=>flatMap);
-var _tslib = require("tslib");
 var _map = require("./map");
-var _from = require("../observable/from");
-var _innerSubscribe = require("../innerSubscribe");
+var _innerFrom = require("../observable/innerFrom");
+var _lift = require("../util/lift");
+var _mergeInternals = require("./mergeInternals");
+var _isFunction = require("../util/isFunction");
 function mergeMap(project, resultSelector, concurrent) {
-    if (concurrent === void 0) concurrent = Number.POSITIVE_INFINITY;
-    if (typeof resultSelector === "function") return function(source) {
-        return source.pipe(mergeMap(function(a, i) {
-            return (0, _from.from)(project(a, i)).pipe((0, _map.map)(function(b, ii) {
-                return resultSelector(a, b, i, ii);
-            }));
-        }, concurrent));
-    };
+    if (concurrent === void 0) concurrent = Infinity;
+    if ((0, _isFunction.isFunction)(resultSelector)) return mergeMap(function(a, i) {
+        return (0, _map.map)(function(b, ii) {
+            return resultSelector(a, b, i, ii);
+        })((0, _innerFrom.innerFrom)(project(a, i)));
+    }, concurrent);
     else if (typeof resultSelector === "number") concurrent = resultSelector;
-    return function(source) {
-        return source.lift(new MergeMapOperator(project, concurrent));
-    };
+    return (0, _lift.operate)(function(source, subscriber) {
+        return (0, _mergeInternals.mergeInternals)(source, subscriber, project, concurrent);
+    });
 }
-var MergeMapOperator = /*@__PURE__*/ function() {
-    function MergeMapOperator(project, concurrent) {
-        if (concurrent === void 0) concurrent = Number.POSITIVE_INFINITY;
-        this.project = project;
-        this.concurrent = concurrent;
-    }
-    MergeMapOperator.prototype.call = function(observer, source) {
-        return source.subscribe(new MergeMapSubscriber(observer, this.project, this.concurrent));
-    };
-    return MergeMapOperator;
-}();
-var MergeMapSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(MergeMapSubscriber, _super);
-    function MergeMapSubscriber(destination, project, concurrent) {
-        if (concurrent === void 0) concurrent = Number.POSITIVE_INFINITY;
-        var _this = _super.call(this, destination) || this;
-        _this.project = project;
-        _this.concurrent = concurrent;
-        _this.hasCompleted = false;
-        _this.buffer = [];
-        _this.active = 0;
-        _this.index = 0;
-        return _this;
-    }
-    MergeMapSubscriber.prototype._next = function(value) {
-        if (this.active < this.concurrent) this._tryNext(value);
-        else this.buffer.push(value);
-    };
-    MergeMapSubscriber.prototype._tryNext = function(value) {
-        var result;
-        var index = this.index++;
-        try {
-            result = this.project(value, index);
-        } catch (err) {
-            this.destination.error(err);
-            return;
-        }
-        this.active++;
-        this._innerSub(result);
-    };
-    MergeMapSubscriber.prototype._innerSub = function(ish) {
-        var innerSubscriber = new (0, _innerSubscribe.SimpleInnerSubscriber)(this);
-        var destination = this.destination;
-        destination.add(innerSubscriber);
-        var innerSubscription = (0, _innerSubscribe.innerSubscribe)(ish, innerSubscriber);
-        if (innerSubscription !== innerSubscriber) destination.add(innerSubscription);
-    };
-    MergeMapSubscriber.prototype._complete = function() {
-        this.hasCompleted = true;
-        if (this.active === 0 && this.buffer.length === 0) this.destination.complete();
-        this.unsubscribe();
-    };
-    MergeMapSubscriber.prototype.notifyNext = function(innerValue) {
-        this.destination.next(innerValue);
-    };
-    MergeMapSubscriber.prototype.notifyComplete = function() {
-        var buffer = this.buffer;
-        this.active--;
-        if (buffer.length > 0) this._next(buffer.shift());
-        else if (this.active === 0 && this.hasCompleted) this.destination.complete();
-    };
-    return MergeMapSubscriber;
-}((0, _innerSubscribe.SimpleOuterSubscriber));
-var flatMap = mergeMap;
 
-},{"tslib":"j8TBX","./map":"l45v5","../observable/from":"8eI7u","../innerSubscribe":"3J6Nw","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"3J6Nw":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Subscriber,_Observable,_util_subscribeTo PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"./map":"25iUP","../observable/innerFrom":"27e4p","../util/lift":"7CiSs","./mergeInternals":"izBBV","../util/isFunction":"dEyyK","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"izBBV":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "SimpleInnerSubscriber", ()=>SimpleInnerSubscriber);
-parcelHelpers.export(exports, "ComplexInnerSubscriber", ()=>ComplexInnerSubscriber);
-parcelHelpers.export(exports, "SimpleOuterSubscriber", ()=>SimpleOuterSubscriber);
-parcelHelpers.export(exports, "ComplexOuterSubscriber", ()=>ComplexOuterSubscriber);
-parcelHelpers.export(exports, "innerSubscribe", ()=>innerSubscribe);
-var _tslib = require("tslib");
-var _subscriber = require("./Subscriber");
-var _observable = require("./Observable");
-var _subscribeTo = require("./util/subscribeTo");
-var SimpleInnerSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(SimpleInnerSubscriber, _super);
-    function SimpleInnerSubscriber(parent) {
-        var _this = _super.call(this) || this;
-        _this.parent = parent;
-        return _this;
-    }
-    SimpleInnerSubscriber.prototype._next = function(value) {
-        this.parent.notifyNext(value);
+parcelHelpers.export(exports, "mergeInternals", ()=>mergeInternals);
+var _innerFrom = require("../observable/innerFrom");
+var _executeSchedule = require("../util/executeSchedule");
+var _operatorSubscriber = require("./OperatorSubscriber");
+function mergeInternals(source, subscriber, project, concurrent, onBeforeNext, expand, innerSubScheduler, additionalFinalizer) {
+    var buffer = [];
+    var active = 0;
+    var index = 0;
+    var isComplete = false;
+    var checkComplete = function() {
+        if (isComplete && !buffer.length && !active) subscriber.complete();
     };
-    SimpleInnerSubscriber.prototype._error = function(error) {
-        this.parent.notifyError(error);
-        this.unsubscribe();
+    var outerNext = function(value) {
+        return active < concurrent ? doInnerSub(value) : buffer.push(value);
     };
-    SimpleInnerSubscriber.prototype._complete = function() {
-        this.parent.notifyComplete();
-        this.unsubscribe();
+    var doInnerSub = function(value) {
+        expand && subscriber.next(value);
+        active++;
+        var innerComplete = false;
+        (0, _innerFrom.innerFrom)(project(value, index++)).subscribe((0, _operatorSubscriber.createOperatorSubscriber)(subscriber, function(innerValue) {
+            onBeforeNext === null || onBeforeNext === void 0 || onBeforeNext(innerValue);
+            if (expand) outerNext(innerValue);
+            else subscriber.next(innerValue);
+        }, function() {
+            innerComplete = true;
+        }, undefined, function() {
+            if (innerComplete) try {
+                active--;
+                var _loop_1 = function() {
+                    var bufferedValue = buffer.shift();
+                    if (innerSubScheduler) (0, _executeSchedule.executeSchedule)(subscriber, innerSubScheduler, function() {
+                        return doInnerSub(bufferedValue);
+                    });
+                    else doInnerSub(bufferedValue);
+                };
+                while(buffer.length && active < concurrent)_loop_1();
+                checkComplete();
+            } catch (err) {
+                subscriber.error(err);
+            }
+        }));
     };
-    return SimpleInnerSubscriber;
-}((0, _subscriber.Subscriber));
-var ComplexInnerSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(ComplexInnerSubscriber, _super);
-    function ComplexInnerSubscriber(parent, outerValue, outerIndex) {
-        var _this = _super.call(this) || this;
-        _this.parent = parent;
-        _this.outerValue = outerValue;
-        _this.outerIndex = outerIndex;
-        return _this;
-    }
-    ComplexInnerSubscriber.prototype._next = function(value) {
-        this.parent.notifyNext(this.outerValue, value, this.outerIndex, this);
+    source.subscribe((0, _operatorSubscriber.createOperatorSubscriber)(subscriber, outerNext, function() {
+        isComplete = true;
+        checkComplete();
+    }));
+    return function() {
+        additionalFinalizer === null || additionalFinalizer === void 0 || additionalFinalizer();
     };
-    ComplexInnerSubscriber.prototype._error = function(error) {
-        this.parent.notifyError(error);
-        this.unsubscribe();
-    };
-    ComplexInnerSubscriber.prototype._complete = function() {
-        this.parent.notifyComplete(this);
-        this.unsubscribe();
-    };
-    return ComplexInnerSubscriber;
-}((0, _subscriber.Subscriber));
-var SimpleOuterSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(SimpleOuterSubscriber, _super);
-    function SimpleOuterSubscriber() {
-        return _super !== null && _super.apply(this, arguments) || this;
-    }
-    SimpleOuterSubscriber.prototype.notifyNext = function(innerValue) {
-        this.destination.next(innerValue);
-    };
-    SimpleOuterSubscriber.prototype.notifyError = function(err) {
-        this.destination.error(err);
-    };
-    SimpleOuterSubscriber.prototype.notifyComplete = function() {
-        this.destination.complete();
-    };
-    return SimpleOuterSubscriber;
-}((0, _subscriber.Subscriber));
-var ComplexOuterSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(ComplexOuterSubscriber, _super);
-    function ComplexOuterSubscriber() {
-        return _super !== null && _super.apply(this, arguments) || this;
-    }
-    ComplexOuterSubscriber.prototype.notifyNext = function(_outerValue, innerValue, _outerIndex, _innerSub) {
-        this.destination.next(innerValue);
-    };
-    ComplexOuterSubscriber.prototype.notifyError = function(error) {
-        this.destination.error(error);
-    };
-    ComplexOuterSubscriber.prototype.notifyComplete = function(_innerSub) {
-        this.destination.complete();
-    };
-    return ComplexOuterSubscriber;
-}((0, _subscriber.Subscriber));
-function innerSubscribe(result, innerSubscriber) {
-    if (innerSubscriber.closed) return undefined;
-    if (result instanceof (0, _observable.Observable)) return result.subscribe(innerSubscriber);
-    var subscription;
-    try {
-        subscription = (0, _subscribeTo.subscribeTo)(result)(innerSubscriber);
-    } catch (error) {
-        innerSubscriber.error(error);
-    }
-    return subscription;
 }
 
-},{"tslib":"j8TBX","./Subscriber":"kpS17","./Observable":"jfynZ","./util/subscribeTo":"3FFM5","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"h5Xn7":[function(require,module,exports) {
-/** PURE_IMPORTS_START  PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+},{"../observable/innerFrom":"27e4p","../util/executeSchedule":"lF0MM","./OperatorSubscriber":"96z9b","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"9UeEi":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "defer", ()=>defer);
+var _observable = require("../Observable");
+var _innerFrom = require("./innerFrom");
+function defer(observableFactory) {
+    return new (0, _observable.Observable)(function(subscriber) {
+        (0, _innerFrom.innerFrom)(observableFactory()).subscribe(subscriber);
+    });
+}
+
+},{"../Observable":"4Jvxr","./innerFrom":"27e4p","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"eTJLc":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "fromEvent", ()=>fromEvent);
+var _tslib = require("tslib");
+var _innerFrom = require("../observable/innerFrom");
+var _observable = require("../Observable");
+var _mergeMap = require("../operators/mergeMap");
+var _isArrayLike = require("../util/isArrayLike");
+var _isFunction = require("../util/isFunction");
+var _mapOneOrManyArgs = require("../util/mapOneOrManyArgs");
+var nodeEventEmitterMethods = [
+    "addListener",
+    "removeListener"
+];
+var eventTargetMethods = [
+    "addEventListener",
+    "removeEventListener"
+];
+var jqueryMethods = [
+    "on",
+    "off"
+];
+function fromEvent(target, eventName, options, resultSelector) {
+    if ((0, _isFunction.isFunction)(options)) {
+        resultSelector = options;
+        options = undefined;
+    }
+    if (resultSelector) return fromEvent(target, eventName, options).pipe((0, _mapOneOrManyArgs.mapOneOrManyArgs)(resultSelector));
+    var _a = (0, _tslib.__read)(isEventTarget(target) ? eventTargetMethods.map(function(methodName) {
+        return function(handler) {
+            return target[methodName](eventName, handler, options);
+        };
+    }) : isNodeStyleEventEmitter(target) ? nodeEventEmitterMethods.map(toCommonHandlerRegistry(target, eventName)) : isJQueryStyleEventEmitter(target) ? jqueryMethods.map(toCommonHandlerRegistry(target, eventName)) : [], 2), add = _a[0], remove = _a[1];
+    if (!add) {
+        if ((0, _isArrayLike.isArrayLike)(target)) return (0, _mergeMap.mergeMap)(function(subTarget) {
+            return fromEvent(subTarget, eventName, options);
+        })((0, _innerFrom.innerFrom)(target));
+    }
+    if (!add) throw new TypeError("Invalid event target");
+    return new (0, _observable.Observable)(function(subscriber) {
+        var handler = function() {
+            var args = [];
+            for(var _i = 0; _i < arguments.length; _i++)args[_i] = arguments[_i];
+            return subscriber.next(1 < args.length ? args : args[0]);
+        };
+        add(handler);
+        return function() {
+            return remove(handler);
+        };
+    });
+}
+function toCommonHandlerRegistry(target, eventName) {
+    return function(methodName) {
+        return function(handler) {
+            return target[methodName](eventName, handler);
+        };
+    };
+}
+function isNodeStyleEventEmitter(target) {
+    return (0, _isFunction.isFunction)(target.addListener) && (0, _isFunction.isFunction)(target.removeListener);
+}
+function isJQueryStyleEventEmitter(target) {
+    return (0, _isFunction.isFunction)(target.on) && (0, _isFunction.isFunction)(target.off);
+}
+function isEventTarget(target) {
+    return (0, _isFunction.isFunction)(target.addEventListener) && (0, _isFunction.isFunction)(target.removeEventListener);
+}
+
+},{"tslib":"lRdW5","../observable/innerFrom":"27e4p","../Observable":"4Jvxr","../operators/mergeMap":"1Kzmb","../util/isArrayLike":"i81jv","../util/isFunction":"dEyyK","../util/mapOneOrManyArgs":"hlLvg","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"djsBt":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "generate", ()=>generate);
+var _tslib = require("tslib");
+var _identity = require("../util/identity");
+var _isScheduler = require("../util/isScheduler");
+var _defer = require("./defer");
+var _scheduleIterable = require("../scheduled/scheduleIterable");
+function generate(initialStateOrOptions, condition, iterate, resultSelectorOrScheduler, scheduler) {
+    var _a, _b;
+    var resultSelector;
+    var initialState;
+    if (arguments.length === 1) _a = initialStateOrOptions, initialState = _a.initialState, condition = _a.condition, iterate = _a.iterate, _b = _a.resultSelector, resultSelector = _b === void 0 ? (0, _identity.identity) : _b, scheduler = _a.scheduler;
+    else {
+        initialState = initialStateOrOptions;
+        if (!resultSelectorOrScheduler || (0, _isScheduler.isScheduler)(resultSelectorOrScheduler)) {
+            resultSelector = (0, _identity.identity);
+            scheduler = resultSelectorOrScheduler;
+        } else resultSelector = resultSelectorOrScheduler;
+    }
+    function gen() {
+        var state;
+        return (0, _tslib.__generator)(this, function(_a) {
+            switch(_a.label){
+                case 0:
+                    state = initialState;
+                    _a.label = 1;
+                case 1:
+                    if (!(!condition || condition(state))) return [
+                        3,
+                        4
+                    ];
+                    return [
+                        4,
+                        resultSelector(state)
+                    ];
+                case 2:
+                    _a.sent();
+                    _a.label = 3;
+                case 3:
+                    state = iterate(state);
+                    return [
+                        3,
+                        1
+                    ];
+                case 4:
+                    return [
+                        2
+                    ];
+            }
+        });
+    }
+    return (0, _defer.defer)(scheduler ? function() {
+        return (0, _scheduleIterable.scheduleIterable)(gen(), scheduler);
+    } : gen);
+}
+
+},{"tslib":"lRdW5","../util/identity":"8Xfg6","../util/isScheduler":"67Brk","./defer":"9UeEi","../scheduled/scheduleIterable":"1884S","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"5Ox1i":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "interval", ()=>interval);
+var _async = require("../scheduler/async");
+var _timer = require("./timer");
+function interval(period, scheduler) {
+    if (period === void 0) period = 0;
+    if (scheduler === void 0) scheduler = (0, _async.asyncScheduler);
+    if (period < 0) period = 0;
+    return (0, _timer.timer)(period, period, scheduler);
+}
+
+},{"../scheduler/async":"bKyC1","./timer":"lbPdw","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"lbPdw":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "timer", ()=>timer);
+var _observable = require("../Observable");
+var _async = require("../scheduler/async");
+var _isScheduler = require("../util/isScheduler");
+var _isDate = require("../util/isDate");
+function timer(dueTime, intervalOrScheduler, scheduler) {
+    if (dueTime === void 0) dueTime = 0;
+    if (scheduler === void 0) scheduler = (0, _async.async);
+    var intervalDuration = -1;
+    if (intervalOrScheduler != null) {
+        if ((0, _isScheduler.isScheduler)(intervalOrScheduler)) scheduler = intervalOrScheduler;
+        else intervalDuration = intervalOrScheduler;
+    }
+    return new (0, _observable.Observable)(function(subscriber) {
+        var due = (0, _isDate.isValidDate)(dueTime) ? +dueTime - scheduler.now() : dueTime;
+        if (due < 0) due = 0;
+        var n = 0;
+        return scheduler.schedule(function() {
+            if (!subscriber.closed) {
+                subscriber.next(n++);
+                if (0 <= intervalDuration) this.schedule(undefined, intervalDuration);
+                else subscriber.complete();
+            }
+        }, due);
+    });
+}
+
+},{"../Observable":"4Jvxr","../scheduler/async":"bKyC1","../util/isScheduler":"67Brk","../util/isDate":"6QILL","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"6QILL":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "isValidDate", ()=>isValidDate);
+function isValidDate(value) {
+    return value instanceof Date && !isNaN(value);
+}
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"lnQPU":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "of", ()=>of);
+var _args = require("../util/args");
+var _from = require("./from");
+function of() {
+    var args = [];
+    for(var _i = 0; _i < arguments.length; _i++)args[_i] = arguments[_i];
+    var scheduler = (0, _args.popScheduler)(args);
+    return (0, _from.from)(args, scheduler);
+}
+
+},{"../util/args":"i1opM","./from":"dBWag","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"c58fk":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"167Lv":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "pluck", ()=>pluck);
+var _map = require("./map");
+function pluck() {
+    var properties = [];
+    for(var _i = 0; _i < arguments.length; _i++)properties[_i] = arguments[_i];
+    var length = properties.length;
+    if (length === 0) throw new Error("list of properties cannot be empty.");
+    return (0, _map.map)(function(x) {
+        var currentProp = x;
+        for(var i = 0; i < length; i++){
+            var p = currentProp === null || currentProp === void 0 ? void 0 : currentProp[properties[i]];
+            if (typeof p !== "undefined") currentProp = p;
+            else return undefined;
+        }
+        return currentProp;
+    });
+}
+
+},{"./map":"25iUP","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"8K6iO":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "reduce", ()=>reduce);
+var _scanInternals = require("./scanInternals");
+var _lift = require("../util/lift");
+function reduce(accumulator, seed) {
+    return (0, _lift.operate)((0, _scanInternals.scanInternals)(accumulator, seed, arguments.length >= 2, false, true));
+}
+
+},{"./scanInternals":"7fn6o","../util/lift":"7CiSs","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7fn6o":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "scanInternals", ()=>scanInternals);
+var _operatorSubscriber = require("./OperatorSubscriber");
+function scanInternals(accumulator, seed, hasSeed, emitOnNext, emitBeforeComplete) {
+    return function(source, subscriber) {
+        var hasState = hasSeed;
+        var state = seed;
+        var index = 0;
+        source.subscribe((0, _operatorSubscriber.createOperatorSubscriber)(subscriber, function(value) {
+            var i = index++;
+            state = hasState ? accumulator(state, value, i) : (hasState = true, value);
+            emitOnNext && subscriber.next(state);
+        }, emitBeforeComplete && function() {
+            hasState && subscriber.next(state);
+            subscriber.complete();
+        }));
+    };
+}
+
+},{"./OperatorSubscriber":"96z9b","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"efPFC":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "scan", ()=>scan);
+var _lift = require("../util/lift");
+var _scanInternals = require("./scanInternals");
+function scan(accumulator, seed) {
+    return (0, _lift.operate)((0, _scanInternals.scanInternals)(accumulator, seed, arguments.length >= 2, true));
+}
+
+},{"../util/lift":"7CiSs","./scanInternals":"7fn6o","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"kMx2y":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "startWith", ()=>startWith);
+var _concat = require("../observable/concat");
+var _args = require("../util/args");
+var _lift = require("../util/lift");
+function startWith() {
+    var values = [];
+    for(var _i = 0; _i < arguments.length; _i++)values[_i] = arguments[_i];
+    var scheduler = (0, _args.popScheduler)(values);
+    return (0, _lift.operate)(function(source, subscriber) {
+        (scheduler ? (0, _concat.concat)(values, source, scheduler) : (0, _concat.concat)(values, source)).subscribe(subscriber);
+    });
+}
+
+},{"../observable/concat":"5g0IT","../util/args":"i1opM","../util/lift":"7CiSs","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"feQNd":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "takeWhile", ()=>takeWhile);
+var _lift = require("../util/lift");
+var _operatorSubscriber = require("./OperatorSubscriber");
+function takeWhile(predicate, inclusive) {
+    if (inclusive === void 0) inclusive = false;
+    return (0, _lift.operate)(function(source, subscriber) {
+        var index = 0;
+        source.subscribe((0, _operatorSubscriber.createOperatorSubscriber)(subscriber, function(value) {
+            var result = predicate(value, index++);
+            (result || inclusive) && subscriber.next(value);
+            !result && subscriber.complete();
+        }));
+    });
+}
+
+},{"../util/lift":"7CiSs","./OperatorSubscriber":"96z9b","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"dVdZH":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "tap", ()=>tap);
+var _isFunction = require("../util/isFunction");
+var _lift = require("../util/lift");
+var _operatorSubscriber = require("./OperatorSubscriber");
+var _identity = require("../util/identity");
+function tap(observerOrNext, error, complete) {
+    var tapObserver = (0, _isFunction.isFunction)(observerOrNext) || error || complete ? {
+        next: observerOrNext,
+        error: error,
+        complete: complete
+    } : observerOrNext;
+    return tapObserver ? (0, _lift.operate)(function(source, subscriber) {
+        var _a;
+        (_a = tapObserver.subscribe) === null || _a === void 0 || _a.call(tapObserver);
+        var isUnsub = true;
+        source.subscribe((0, _operatorSubscriber.createOperatorSubscriber)(subscriber, function(value) {
+            var _a;
+            (_a = tapObserver.next) === null || _a === void 0 || _a.call(tapObserver, value);
+            subscriber.next(value);
+        }, function() {
+            var _a;
+            isUnsub = false;
+            (_a = tapObserver.complete) === null || _a === void 0 || _a.call(tapObserver);
+            subscriber.complete();
+        }, function(err) {
+            var _a;
+            isUnsub = false;
+            (_a = tapObserver.error) === null || _a === void 0 || _a.call(tapObserver, err);
+            subscriber.error(err);
+        }, function() {
+            var _a, _b;
+            if (isUnsub) (_a = tapObserver.unsubscribe) === null || _a === void 0 || _a.call(tapObserver);
+            (_b = tapObserver.finalize) === null || _b === void 0 || _b.call(tapObserver);
+        }));
+    }) : (0, _identity.identity);
+}
+
+},{"../util/isFunction":"dEyyK","../util/lift":"7CiSs","./OperatorSubscriber":"96z9b","../util/identity":"8Xfg6","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"occyH":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "toArray", ()=>toArray);
+var _reduce = require("./reduce");
+var _lift = require("../util/lift");
+var arrReducer = function(arr, value) {
+    return arr.push(value), arr;
+};
+function toArray() {
+    return (0, _lift.operate)(function(source, subscriber) {
+        (0, _reduce.reduce)(arrReducer, [])(source).subscribe(subscriber);
+    });
+}
+
+},{"./reduce":"8K6iO","../util/lift":"7CiSs","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"hLs7d":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
 parcelHelpers.export(exports, "audit", ()=>(0, _audit.audit));
 parcelHelpers.export(exports, "auditTime", ()=>(0, _auditTime.auditTime));
@@ -2722,11 +3442,15 @@ parcelHelpers.export(exports, "bufferToggle", ()=>(0, _bufferToggle.bufferToggle
 parcelHelpers.export(exports, "bufferWhen", ()=>(0, _bufferWhen.bufferWhen));
 parcelHelpers.export(exports, "catchError", ()=>(0, _catchError.catchError));
 parcelHelpers.export(exports, "combineAll", ()=>(0, _combineAll.combineAll));
+parcelHelpers.export(exports, "combineLatestAll", ()=>(0, _combineLatestAll.combineLatestAll));
 parcelHelpers.export(exports, "combineLatest", ()=>(0, _combineLatest.combineLatest));
+parcelHelpers.export(exports, "combineLatestWith", ()=>(0, _combineLatestWith.combineLatestWith));
 parcelHelpers.export(exports, "concat", ()=>(0, _concat.concat));
 parcelHelpers.export(exports, "concatAll", ()=>(0, _concatAll.concatAll));
 parcelHelpers.export(exports, "concatMap", ()=>(0, _concatMap.concatMap));
 parcelHelpers.export(exports, "concatMapTo", ()=>(0, _concatMapTo.concatMapTo));
+parcelHelpers.export(exports, "concatWith", ()=>(0, _concatWith.concatWith));
+parcelHelpers.export(exports, "connect", ()=>(0, _connect.connect));
 parcelHelpers.export(exports, "count", ()=>(0, _count.count));
 parcelHelpers.export(exports, "debounce", ()=>(0, _debounce.debounce));
 parcelHelpers.export(exports, "debounceTime", ()=>(0, _debounceTime.debounceTime));
@@ -2741,6 +3465,7 @@ parcelHelpers.export(exports, "elementAt", ()=>(0, _elementAt.elementAt));
 parcelHelpers.export(exports, "endWith", ()=>(0, _endWith.endWith));
 parcelHelpers.export(exports, "every", ()=>(0, _every.every));
 parcelHelpers.export(exports, "exhaust", ()=>(0, _exhaust.exhaust));
+parcelHelpers.export(exports, "exhaustAll", ()=>(0, _exhaustAll.exhaustAll));
 parcelHelpers.export(exports, "exhaustMap", ()=>(0, _exhaustMap.exhaustMap));
 parcelHelpers.export(exports, "expand", ()=>(0, _expand.expand));
 parcelHelpers.export(exports, "filter", ()=>(0, _filter.filter));
@@ -2758,14 +3483,15 @@ parcelHelpers.export(exports, "materialize", ()=>(0, _materialize.materialize));
 parcelHelpers.export(exports, "max", ()=>(0, _max.max));
 parcelHelpers.export(exports, "merge", ()=>(0, _merge.merge));
 parcelHelpers.export(exports, "mergeAll", ()=>(0, _mergeAll.mergeAll));
+parcelHelpers.export(exports, "flatMap", ()=>(0, _flatMap.flatMap));
 parcelHelpers.export(exports, "mergeMap", ()=>(0, _mergeMap.mergeMap));
-parcelHelpers.export(exports, "flatMap", ()=>(0, _mergeMap.flatMap));
 parcelHelpers.export(exports, "mergeMapTo", ()=>(0, _mergeMapTo.mergeMapTo));
 parcelHelpers.export(exports, "mergeScan", ()=>(0, _mergeScan.mergeScan));
+parcelHelpers.export(exports, "mergeWith", ()=>(0, _mergeWith.mergeWith));
 parcelHelpers.export(exports, "min", ()=>(0, _min.min));
 parcelHelpers.export(exports, "multicast", ()=>(0, _multicast.multicast));
 parcelHelpers.export(exports, "observeOn", ()=>(0, _observeOn.observeOn));
-parcelHelpers.export(exports, "onErrorResumeNext", ()=>(0, _onErrorResumeNext.onErrorResumeNext));
+parcelHelpers.export(exports, "onErrorResumeNext", ()=>(0, _onErrorResumeNextWith.onErrorResumeNext));
 parcelHelpers.export(exports, "pairwise", ()=>(0, _pairwise.pairwise));
 parcelHelpers.export(exports, "partition", ()=>(0, _partition.partition));
 parcelHelpers.export(exports, "pluck", ()=>(0, _pluck.pluck));
@@ -2774,6 +3500,7 @@ parcelHelpers.export(exports, "publishBehavior", ()=>(0, _publishBehavior.publis
 parcelHelpers.export(exports, "publishLast", ()=>(0, _publishLast.publishLast));
 parcelHelpers.export(exports, "publishReplay", ()=>(0, _publishReplay.publishReplay));
 parcelHelpers.export(exports, "race", ()=>(0, _race.race));
+parcelHelpers.export(exports, "raceWith", ()=>(0, _raceWith.raceWith));
 parcelHelpers.export(exports, "reduce", ()=>(0, _reduce.reduce));
 parcelHelpers.export(exports, "repeat", ()=>(0, _repeat.repeat));
 parcelHelpers.export(exports, "repeatWhen", ()=>(0, _repeatWhen.repeatWhen));
@@ -2796,6 +3523,7 @@ parcelHelpers.export(exports, "subscribeOn", ()=>(0, _subscribeOn.subscribeOn));
 parcelHelpers.export(exports, "switchAll", ()=>(0, _switchAll.switchAll));
 parcelHelpers.export(exports, "switchMap", ()=>(0, _switchMap.switchMap));
 parcelHelpers.export(exports, "switchMapTo", ()=>(0, _switchMapTo.switchMapTo));
+parcelHelpers.export(exports, "switchScan", ()=>(0, _switchScan.switchScan));
 parcelHelpers.export(exports, "take", ()=>(0, _take.take));
 parcelHelpers.export(exports, "takeLast", ()=>(0, _takeLast.takeLast));
 parcelHelpers.export(exports, "takeUntil", ()=>(0, _takeUntil.takeUntil));
@@ -2817,6 +3545,7 @@ parcelHelpers.export(exports, "windowWhen", ()=>(0, _windowWhen.windowWhen));
 parcelHelpers.export(exports, "withLatestFrom", ()=>(0, _withLatestFrom.withLatestFrom));
 parcelHelpers.export(exports, "zip", ()=>(0, _zip.zip));
 parcelHelpers.export(exports, "zipAll", ()=>(0, _zipAll.zipAll));
+parcelHelpers.export(exports, "zipWith", ()=>(0, _zipWith.zipWith));
 var _audit = require("../internal/operators/audit");
 var _auditTime = require("../internal/operators/auditTime");
 var _buffer = require("../internal/operators/buffer");
@@ -2826,11 +3555,15 @@ var _bufferToggle = require("../internal/operators/bufferToggle");
 var _bufferWhen = require("../internal/operators/bufferWhen");
 var _catchError = require("../internal/operators/catchError");
 var _combineAll = require("../internal/operators/combineAll");
+var _combineLatestAll = require("../internal/operators/combineLatestAll");
 var _combineLatest = require("../internal/operators/combineLatest");
+var _combineLatestWith = require("../internal/operators/combineLatestWith");
 var _concat = require("../internal/operators/concat");
 var _concatAll = require("../internal/operators/concatAll");
 var _concatMap = require("../internal/operators/concatMap");
 var _concatMapTo = require("../internal/operators/concatMapTo");
+var _concatWith = require("../internal/operators/concatWith");
+var _connect = require("../internal/operators/connect");
 var _count = require("../internal/operators/count");
 var _debounce = require("../internal/operators/debounce");
 var _debounceTime = require("../internal/operators/debounceTime");
@@ -2845,6 +3578,7 @@ var _elementAt = require("../internal/operators/elementAt");
 var _endWith = require("../internal/operators/endWith");
 var _every = require("../internal/operators/every");
 var _exhaust = require("../internal/operators/exhaust");
+var _exhaustAll = require("../internal/operators/exhaustAll");
 var _exhaustMap = require("../internal/operators/exhaustMap");
 var _expand = require("../internal/operators/expand");
 var _filter = require("../internal/operators/filter");
@@ -2862,13 +3596,15 @@ var _materialize = require("../internal/operators/materialize");
 var _max = require("../internal/operators/max");
 var _merge = require("../internal/operators/merge");
 var _mergeAll = require("../internal/operators/mergeAll");
+var _flatMap = require("../internal/operators/flatMap");
 var _mergeMap = require("../internal/operators/mergeMap");
 var _mergeMapTo = require("../internal/operators/mergeMapTo");
 var _mergeScan = require("../internal/operators/mergeScan");
+var _mergeWith = require("../internal/operators/mergeWith");
 var _min = require("../internal/operators/min");
 var _multicast = require("../internal/operators/multicast");
 var _observeOn = require("../internal/operators/observeOn");
-var _onErrorResumeNext = require("../internal/operators/onErrorResumeNext");
+var _onErrorResumeNextWith = require("../internal/operators/onErrorResumeNextWith");
 var _pairwise = require("../internal/operators/pairwise");
 var _partition = require("../internal/operators/partition");
 var _pluck = require("../internal/operators/pluck");
@@ -2877,6 +3613,7 @@ var _publishBehavior = require("../internal/operators/publishBehavior");
 var _publishLast = require("../internal/operators/publishLast");
 var _publishReplay = require("../internal/operators/publishReplay");
 var _race = require("../internal/operators/race");
+var _raceWith = require("../internal/operators/raceWith");
 var _reduce = require("../internal/operators/reduce");
 var _repeat = require("../internal/operators/repeat");
 var _repeatWhen = require("../internal/operators/repeatWhen");
@@ -2899,6 +3636,7 @@ var _subscribeOn = require("../internal/operators/subscribeOn");
 var _switchAll = require("../internal/operators/switchAll");
 var _switchMap = require("../internal/operators/switchMap");
 var _switchMapTo = require("../internal/operators/switchMapTo");
+var _switchScan = require("../internal/operators/switchScan");
 var _take = require("../internal/operators/take");
 var _takeLast = require("../internal/operators/takeLast");
 var _takeUntil = require("../internal/operators/takeUntil");
@@ -2920,223 +3658,46 @@ var _windowWhen = require("../internal/operators/windowWhen");
 var _withLatestFrom = require("../internal/operators/withLatestFrom");
 var _zip = require("../internal/operators/zip");
 var _zipAll = require("../internal/operators/zipAll");
+var _zipWith = require("../internal/operators/zipWith");
 
-},{"../internal/operators/audit":false,"../internal/operators/auditTime":false,"../internal/operators/buffer":false,"../internal/operators/bufferCount":false,"../internal/operators/bufferTime":false,"../internal/operators/bufferToggle":false,"../internal/operators/bufferWhen":false,"../internal/operators/catchError":false,"../internal/operators/combineAll":false,"../internal/operators/combineLatest":false,"../internal/operators/concat":false,"../internal/operators/concatAll":false,"../internal/operators/concatMap":false,"../internal/operators/concatMapTo":false,"../internal/operators/count":false,"../internal/operators/debounce":false,"../internal/operators/debounceTime":false,"../internal/operators/defaultIfEmpty":false,"../internal/operators/delay":false,"../internal/operators/delayWhen":false,"../internal/operators/dematerialize":false,"../internal/operators/distinct":false,"../internal/operators/distinctUntilChanged":false,"../internal/operators/distinctUntilKeyChanged":false,"../internal/operators/elementAt":false,"../internal/operators/endWith":false,"../internal/operators/every":false,"../internal/operators/exhaust":false,"../internal/operators/exhaustMap":false,"../internal/operators/expand":false,"../internal/operators/filter":false,"../internal/operators/finalize":false,"../internal/operators/find":false,"../internal/operators/findIndex":false,"../internal/operators/first":false,"../internal/operators/groupBy":false,"../internal/operators/ignoreElements":false,"../internal/operators/isEmpty":false,"../internal/operators/last":false,"../internal/operators/map":"l45v5","../internal/operators/mapTo":false,"../internal/operators/materialize":false,"../internal/operators/max":false,"../internal/operators/merge":false,"../internal/operators/mergeAll":"4gl6z","../internal/operators/mergeMap":"4PgYD","../internal/operators/mergeMapTo":false,"../internal/operators/mergeScan":false,"../internal/operators/min":false,"../internal/operators/multicast":false,"../internal/operators/observeOn":false,"../internal/operators/onErrorResumeNext":false,"../internal/operators/pairwise":false,"../internal/operators/partition":false,"../internal/operators/pluck":false,"../internal/operators/publish":false,"../internal/operators/publishBehavior":false,"../internal/operators/publishLast":false,"../internal/operators/publishReplay":false,"../internal/operators/race":false,"../internal/operators/reduce":false,"../internal/operators/repeat":false,"../internal/operators/repeatWhen":false,"../internal/operators/retry":false,"../internal/operators/retryWhen":false,"../internal/operators/refCount":false,"../internal/operators/sample":false,"../internal/operators/sampleTime":false,"../internal/operators/scan":"04xhW","../internal/operators/sequenceEqual":false,"../internal/operators/share":false,"../internal/operators/shareReplay":false,"../internal/operators/single":false,"../internal/operators/skip":false,"../internal/operators/skipLast":false,"../internal/operators/skipUntil":false,"../internal/operators/skipWhile":false,"../internal/operators/startWith":false,"../internal/operators/subscribeOn":false,"../internal/operators/switchAll":false,"../internal/operators/switchMap":false,"../internal/operators/switchMapTo":false,"../internal/operators/take":false,"../internal/operators/takeLast":false,"../internal/operators/takeUntil":false,"../internal/operators/takeWhile":"428ye","../internal/operators/tap":"bqlzJ","../internal/operators/throttle":false,"../internal/operators/throttleTime":false,"../internal/operators/throwIfEmpty":false,"../internal/operators/timeInterval":false,"../internal/operators/timeout":false,"../internal/operators/timeoutWith":false,"../internal/operators/timestamp":false,"../internal/operators/toArray":false,"../internal/operators/window":false,"../internal/operators/windowCount":false,"../internal/operators/windowTime":false,"../internal/operators/windowToggle":false,"../internal/operators/windowWhen":false,"../internal/operators/withLatestFrom":false,"../internal/operators/zip":false,"../internal/operators/zipAll":false,"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"04xhW":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Subscriber PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "scan", ()=>scan);
-var _tslib = require("tslib");
-var _subscriber = require("../Subscriber");
-function scan(accumulator, seed) {
-    var hasSeed = false;
-    if (arguments.length >= 2) hasSeed = true;
-    return function scanOperatorFunction(source) {
-        return source.lift(new ScanOperator(accumulator, seed, hasSeed));
-    };
-}
-var ScanOperator = /*@__PURE__*/ function() {
-    function ScanOperator(accumulator, seed, hasSeed) {
-        if (hasSeed === void 0) hasSeed = false;
-        this.accumulator = accumulator;
-        this.seed = seed;
-        this.hasSeed = hasSeed;
-    }
-    ScanOperator.prototype.call = function(subscriber, source) {
-        return source.subscribe(new ScanSubscriber(subscriber, this.accumulator, this.seed, this.hasSeed));
-    };
-    return ScanOperator;
-}();
-var ScanSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(ScanSubscriber, _super);
-    function ScanSubscriber(destination, accumulator, _seed, hasSeed) {
-        var _this = _super.call(this, destination) || this;
-        _this.accumulator = accumulator;
-        _this._seed = _seed;
-        _this.hasSeed = hasSeed;
-        _this.index = 0;
-        return _this;
-    }
-    Object.defineProperty(ScanSubscriber.prototype, "seed", {
-        get: function() {
-            return this._seed;
-        },
-        set: function(value) {
-            this.hasSeed = true;
-            this._seed = value;
-        },
-        enumerable: true,
-        configurable: true
-    });
-    ScanSubscriber.prototype._next = function(value) {
-        if (!this.hasSeed) {
-            this.seed = value;
-            this.destination.next(value);
-        } else return this._tryNext(value);
-    };
-    ScanSubscriber.prototype._tryNext = function(value) {
-        var index = this.index++;
-        var result;
-        try {
-            result = this.accumulator(this.seed, value, index);
-        } catch (err) {
-            this.destination.error(err);
-        }
-        this.seed = result;
-        this.destination.next(result);
-    };
-    return ScanSubscriber;
-}((0, _subscriber.Subscriber));
-
-},{"tslib":"j8TBX","../Subscriber":"kpS17","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"428ye":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Subscriber PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "takeWhile", ()=>takeWhile);
-var _tslib = require("tslib");
-var _subscriber = require("../Subscriber");
-function takeWhile(predicate, inclusive) {
-    if (inclusive === void 0) inclusive = false;
-    return function(source) {
-        return source.lift(new TakeWhileOperator(predicate, inclusive));
-    };
-}
-var TakeWhileOperator = /*@__PURE__*/ function() {
-    function TakeWhileOperator(predicate, inclusive) {
-        this.predicate = predicate;
-        this.inclusive = inclusive;
-    }
-    TakeWhileOperator.prototype.call = function(subscriber, source) {
-        return source.subscribe(new TakeWhileSubscriber(subscriber, this.predicate, this.inclusive));
-    };
-    return TakeWhileOperator;
-}();
-var TakeWhileSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(TakeWhileSubscriber, _super);
-    function TakeWhileSubscriber(destination, predicate, inclusive) {
-        var _this = _super.call(this, destination) || this;
-        _this.predicate = predicate;
-        _this.inclusive = inclusive;
-        _this.index = 0;
-        return _this;
-    }
-    TakeWhileSubscriber.prototype._next = function(value) {
-        var destination = this.destination;
-        var result;
-        try {
-            result = this.predicate(value, this.index++);
-        } catch (err) {
-            destination.error(err);
-            return;
-        }
-        this.nextOrComplete(value, result);
-    };
-    TakeWhileSubscriber.prototype.nextOrComplete = function(value, predicateResult) {
-        var destination = this.destination;
-        if (Boolean(predicateResult)) destination.next(value);
-        else {
-            if (this.inclusive) destination.next(value);
-            destination.complete();
-        }
-    };
-    return TakeWhileSubscriber;
-}((0, _subscriber.Subscriber));
-
-},{"tslib":"j8TBX","../Subscriber":"kpS17","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"bqlzJ":[function(require,module,exports) {
-/** PURE_IMPORTS_START tslib,_Subscriber,_util_noop,_util_isFunction PURE_IMPORTS_END */ var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
-parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "tap", ()=>tap);
-var _tslib = require("tslib");
-var _subscriber = require("../Subscriber");
-var _noop = require("../util/noop");
-var _isFunction = require("../util/isFunction");
-function tap(nextOrObserver, error, complete) {
-    return function tapOperatorFunction(source) {
-        return source.lift(new DoOperator(nextOrObserver, error, complete));
-    };
-}
-var DoOperator = /*@__PURE__*/ function() {
-    function DoOperator(nextOrObserver, error, complete) {
-        this.nextOrObserver = nextOrObserver;
-        this.error = error;
-        this.complete = complete;
-    }
-    DoOperator.prototype.call = function(subscriber, source) {
-        return source.subscribe(new TapSubscriber(subscriber, this.nextOrObserver, this.error, this.complete));
-    };
-    return DoOperator;
-}();
-var TapSubscriber = /*@__PURE__*/ function(_super) {
-    _tslib.__extends(TapSubscriber, _super);
-    function TapSubscriber(destination, observerOrNext, error, complete) {
-        var _this = _super.call(this, destination) || this;
-        _this._tapNext = (0, _noop.noop);
-        _this._tapError = (0, _noop.noop);
-        _this._tapComplete = (0, _noop.noop);
-        _this._tapError = error || (0, _noop.noop);
-        _this._tapComplete = complete || (0, _noop.noop);
-        if ((0, _isFunction.isFunction)(observerOrNext)) {
-            _this._context = _this;
-            _this._tapNext = observerOrNext;
-        } else if (observerOrNext) {
-            _this._context = observerOrNext;
-            _this._tapNext = observerOrNext.next || (0, _noop.noop);
-            _this._tapError = observerOrNext.error || (0, _noop.noop);
-            _this._tapComplete = observerOrNext.complete || (0, _noop.noop);
-        }
-        return _this;
-    }
-    TapSubscriber.prototype._next = function(value) {
-        try {
-            this._tapNext.call(this._context, value);
-        } catch (err) {
-            this.destination.error(err);
-            return;
-        }
-        this.destination.next(value);
-    };
-    TapSubscriber.prototype._error = function(err) {
-        try {
-            this._tapError.call(this._context, err);
-        } catch (err) {
-            this.destination.error(err);
-            return;
-        }
-        this.destination.error(err);
-    };
-    TapSubscriber.prototype._complete = function() {
-        try {
-            this._tapComplete.call(this._context);
-        } catch (err) {
-            this.destination.error(err);
-            return;
-        }
-        return this.destination.complete();
-    };
-    return TapSubscriber;
-}((0, _subscriber.Subscriber));
-
-},{"tslib":"j8TBX","../Subscriber":"kpS17","../util/noop":"4PFes","../util/isFunction":"gyncl","@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7gpxq":[function(require,module,exports) {
+},{"../internal/operators/audit":false,"../internal/operators/auditTime":false,"../internal/operators/buffer":false,"../internal/operators/bufferCount":false,"../internal/operators/bufferTime":false,"../internal/operators/bufferToggle":false,"../internal/operators/bufferWhen":false,"../internal/operators/catchError":false,"../internal/operators/combineAll":false,"../internal/operators/combineLatestAll":false,"../internal/operators/combineLatest":false,"../internal/operators/combineLatestWith":false,"../internal/operators/concat":false,"../internal/operators/concatAll":"77QLf","../internal/operators/concatMap":false,"../internal/operators/concatMapTo":false,"../internal/operators/concatWith":false,"../internal/operators/connect":false,"../internal/operators/count":false,"../internal/operators/debounce":false,"../internal/operators/debounceTime":false,"../internal/operators/defaultIfEmpty":false,"../internal/operators/delay":false,"../internal/operators/delayWhen":false,"../internal/operators/dematerialize":false,"../internal/operators/distinct":false,"../internal/operators/distinctUntilChanged":false,"../internal/operators/distinctUntilKeyChanged":false,"../internal/operators/elementAt":false,"../internal/operators/endWith":false,"../internal/operators/every":false,"../internal/operators/exhaust":false,"../internal/operators/exhaustAll":false,"../internal/operators/exhaustMap":false,"../internal/operators/expand":false,"../internal/operators/filter":false,"../internal/operators/finalize":false,"../internal/operators/find":false,"../internal/operators/findIndex":false,"../internal/operators/first":false,"../internal/operators/groupBy":false,"../internal/operators/ignoreElements":false,"../internal/operators/isEmpty":false,"../internal/operators/last":false,"../internal/operators/map":"25iUP","../internal/operators/mapTo":false,"../internal/operators/materialize":false,"../internal/operators/max":false,"../internal/operators/merge":false,"../internal/operators/mergeAll":"iAqyw","../internal/operators/flatMap":false,"../internal/operators/mergeMap":"1Kzmb","../internal/operators/mergeMapTo":false,"../internal/operators/mergeScan":false,"../internal/operators/mergeWith":false,"../internal/operators/min":false,"../internal/operators/multicast":false,"../internal/operators/observeOn":"21OcU","../internal/operators/onErrorResumeNextWith":false,"../internal/operators/pairwise":false,"../internal/operators/partition":false,"../internal/operators/pluck":"167Lv","../internal/operators/publish":false,"../internal/operators/publishBehavior":false,"../internal/operators/publishLast":false,"../internal/operators/publishReplay":false,"../internal/operators/race":false,"../internal/operators/raceWith":false,"../internal/operators/reduce":"8K6iO","../internal/operators/repeat":false,"../internal/operators/repeatWhen":false,"../internal/operators/retry":false,"../internal/operators/retryWhen":false,"../internal/operators/refCount":false,"../internal/operators/sample":false,"../internal/operators/sampleTime":false,"../internal/operators/scan":"efPFC","../internal/operators/sequenceEqual":false,"../internal/operators/share":false,"../internal/operators/shareReplay":false,"../internal/operators/single":false,"../internal/operators/skip":false,"../internal/operators/skipLast":false,"../internal/operators/skipUntil":false,"../internal/operators/skipWhile":false,"../internal/operators/startWith":"kMx2y","../internal/operators/subscribeOn":"3SFol","../internal/operators/switchAll":false,"../internal/operators/switchMap":false,"../internal/operators/switchMapTo":false,"../internal/operators/switchScan":false,"../internal/operators/take":false,"../internal/operators/takeLast":false,"../internal/operators/takeUntil":false,"../internal/operators/takeWhile":"feQNd","../internal/operators/tap":"dVdZH","../internal/operators/throttle":false,"../internal/operators/throttleTime":false,"../internal/operators/throwIfEmpty":false,"../internal/operators/timeInterval":false,"../internal/operators/timeout":false,"../internal/operators/timeoutWith":false,"../internal/operators/timestamp":false,"../internal/operators/toArray":"occyH","../internal/operators/window":false,"../internal/operators/windowCount":false,"../internal/operators/windowTime":false,"../internal/operators/windowToggle":false,"../internal/operators/windowWhen":false,"../internal/operators/withLatestFrom":false,"../internal/operators/zip":false,"../internal/operators/zipAll":false,"../internal/operators/zipWith":false,"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}],"7gpxq":[function(require,module,exports) {
 var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
 parcelHelpers.defineInteropFlag(exports);
-parcelHelpers.export(exports, "paint", ()=>paint);
-const createElement = (col)=>{
+parcelHelpers.export(exports, "render", ()=>render);
+var _constants = require("./constants");
+const empty = 0;
+const plyer = 1;
+const bll = 2;
+const brick = 3;
+const createElem = (col)=>{
     const elem = document.createElement("div");
     elem.classList.add("board");
     elem.style.display = "inline-block";
     elem.style.marginLeft = "10px";
     elem.style.height = "6px";
     elem.style.width = "6px";
-    elem.style["background-color"] = col === 0 ? "white" : col === 1 ? "cornflowerblue" : col === 2 ? "gray" : "silver";
-    elem.style["border-radius"] = "90%";
+    elem.style["background-color"] = col === empty ? "white" : col === plyer ? "cornflowerblue" : col === bll ? "gray" : "silver";
+    elem.style["border-radius"] = col === bll ? "100%" : "0%";
     return elem;
 };
-const paint = (game, lives, score)=>{
-    document.body.innerHTML = `Lives : ${lives}, Score: ${score}`;
-    game.forEach((row)=>{
+const render = ([player, ball, bricks])=>{
+    const game = Array((0, _constants.gameSize)).fill(0).map((e)=>Array((0, _constants.gameSize)).fill(0));
+    game[player.x][player.y] = plyer;
+    game[ball.x][ball.y] = bll;
+    bricks.forEach((b)=>game[b.x][b.y] = brick);
+    document.body.innerHTML = `Score: ${player.score} Lives: ${player.lives} <br/>`;
+    game.forEach((r)=>{
         const rowContainer = document.createElement("div");
-        row.forEach((col)=>rowContainer.appendChild(createElement(col)));
+        r.forEach((c)=>rowContainer.appendChild(createElem(c)));
         document.body.appendChild(rowContainer);
     });
 };
+
+},{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3","./constants":"16G01"}],"16G01":[function(require,module,exports) {
+var parcelHelpers = require("@parcel/transformer-js/src/esmodule-helpers.js");
+parcelHelpers.defineInteropFlag(exports);
+parcelHelpers.export(exports, "gameSize", ()=>gameSize);
+const gameSize = 20;
 
 },{"@parcel/transformer-js/src/esmodule-helpers.js":"gkKU3"}]},["6AjTz","1jwFz"], "1jwFz", "parcelRequire845f")
 
